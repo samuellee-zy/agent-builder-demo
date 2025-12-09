@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Agent } from '../types';
-import { Bot, Clock, Plus, Wrench } from 'lucide-react';
+import { Bot, Clock, Plus, Wrench, Database } from 'lucide-react';
 
 interface SidebarProps {
   recentAgents: Agent[];
@@ -10,6 +10,14 @@ interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
+
+const formatDate = (date: Date | string) => {
+  const d = new Date(date);
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({ recentAgents, onNewAgent, onSelectAgent, activeTab, onTabChange }) => {
   return (
@@ -47,6 +55,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentAgents, onNewAgent, onSe
           Agent Operating Procedure
         </button>
         <button
+          onClick={() => onTabChange('registry')}
+          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'registry' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
+        >
+          <Database size={14} />
+          Agent Registry
+        </button>
+        <button
           onClick={() => onTabChange('tools')}
           className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
             activeTab === 'tools' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -80,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentAgents, onNewAgent, onSe
                 <p className="text-xs text-slate-500 truncate">{agent.description}</p>
                 <div className="flex items-center gap-1 mt-1.5 text-[10px] text-slate-600">
                    <Clock size={10} />
-                   <span>{new Date(agent.createdAt).toLocaleDateString()}</span>
+                   <span>{formatDate(agent.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -94,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentAgents, onNewAgent, onSe
             className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors border border-slate-700"
         >
           <Plus size={16} />
-          <span>New Project</span>
+          <span>New Agent</span>
         </button>
       </div>
     </div>

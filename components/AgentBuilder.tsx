@@ -1,15 +1,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS } from '../types';
+import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
 import { sendArchitectMessage, generateArchitectureFromChat } from '../services/mockAgentService';
 import { AgentOrchestrator } from '../services/orchestrator';
 import { GoogleGenAI } from "@google/genai";
+import { AgentDiagram } from './AgentDiagram';
 import { 
   Sparkles, 
   ArrowRight, 
   Bot, 
-  Plus,
   Layers,
   ArrowDownCircle,
   Zap,
@@ -25,7 +25,9 @@ import {
   RotateCcw,
   RefreshCw,
   AlertCircle,
-  PencilRuler
+  PencilRuler,
+  MessageSquarePlus,
+  Download
 } from 'lucide-react';
 
 interface AgentBuilderProps {
@@ -33,169 +35,82 @@ interface AgentBuilderProps {
   initialAgent?: Agent; // Support reloading an existing agent
 }
 
-// --- Recursive Tree Component (Unchanged mostly, just ensure correct imports) ---
-const AgentNode: React.FC<{
-  agent: Agent;
-  selectedId: string;
-  onSelect: (agent: Agent) => void;
-  onAddSub: (parentId: string, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent') => void;
-  depth: number;
-  isLast?: boolean;
-}> = ({ agent, selectedId, onSelect, onAddSub, depth, isLast }) => {
-  const isSelected = agent.id === selectedId;
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+// Inner component to handle secure video playback via Blob
+const VideoMessage: React.FC<{ src: string }> = ({ src }) => {
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowAddMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    useEffect(() => {
+        let active = true;
+        const loadVideo = async () => {
+            try {
+                // Fetch the video data using the authenticated URL (which includes the key)
+                const response = await fetch(src);
+                if (!response.ok) throw new Error('Failed to load video stream');
+                const blob = await response.blob();
+                
+                if (active) {
+                    const url = URL.createObjectURL(blob);
+                    setBlobUrl(url);
+                    setLoading(false);
+                }
+            } catch (e) {
+                if (active) {
+                    console.error("Video load error:", e);
+                    setError('Playback failed. Please download.');
+                    setLoading(false);
+                }
+            }
+        };
 
-  const handleAddClick = (e: React.MouseEvent, type: 'agent' | 'group', mode?: 'sequential' | 'concurrent') => {
-    e.stopPropagation();
-    onAddSub(agent.id, type, mode);
-    setShowAddMenu(false);
-  };
+        loadVideo();
 
-  const isGroup = agent.type === 'group';
-  const isSequential = agent.groupMode === 'sequential';
+        return () => {
+            active = false;
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
+        };
+    }, [src]);
 
-  return (
-    <div className="flex flex-col items-center">
-      {depth > 0 && (
-        <div className="h-6 w-px bg-slate-600"></div>
-      )}
-
-      {isGroup ? (
-          <div 
-             onClick={(e) => { e.stopPropagation(); onSelect(agent); }}
-             className={`
-                relative p-4 rounded-xl border-2 border-dashed transition-all duration-200 group flex flex-col items-center
-                ${isSelected 
-                  ? 'bg-slate-800/80 border-brand-400/50 shadow-lg shadow-brand-500/10' 
-                  : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}
-                ${isSequential ? 'min-w-[200px]' : 'min-w-[300px]'}
-             `}
-          >
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 uppercase tracking-wider border border-slate-700 flex items-center gap-1 whitespace-nowrap">
-                  {isSequential ? <ArrowDownCircle size={10} /> : <Layers size={10} />}
-                  {isSequential ? 'Sequential Flow' : 'Concurrent Flow'}
-              </div>
-
-              <div className={`flex ${isSequential ? 'flex-col gap-4' : 'flex-row gap-4'} mt-2`}>
-                  {agent.subAgents && agent.subAgents.length > 0 ? (
-                      agent.subAgents.map((sub, idx) => (
-                        <AgentNode 
-                            key={sub.id} 
-                            agent={sub} 
-                            selectedId={selectedId} 
-                            onSelect={onSelect}
-                            onAddSub={onAddSub}
-                            depth={0} 
-                        />
-                      ))
-                  ) : (
-                      <div className="text-xs text-slate-600 italic py-2">Empty Group</div>
-                  )}
-              </div>
-
-               <div className="relative mt-4" ref={menuRef}>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowAddMenu(!showAddMenu); }}
-                    className="w-6 h-6 rounded-full bg-slate-700 hover:bg-brand-600 text-white flex items-center justify-center transition-colors shadow-md z-20"
-                  >
-                    <Plus size={14} />
-                  </button>
-
-                  {showAddMenu && (
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden py-1">
-                       <button onClick={(e) => handleAddClick(e, 'agent')} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2">
-                           <Bot size={12} /> Add Agent
-                       </button>
-                    </div>
-                  )}
-               </div>
-          </div>
-      ) : (
-          <div 
-            onClick={(e) => { e.stopPropagation(); onSelect(agent); }}
-            className={`
-              relative w-48 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 group
-              flex flex-col items-center text-center gap-2 z-10
-              ${isSelected 
-                ? 'bg-brand-900/30 border-brand-500 shadow-lg shadow-brand-500/20 scale-105' 
-                : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-750'}
-            `}
-          >
-            <div className={`
-              w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-inner
-              ${isSelected ? 'bg-brand-500 text-white' : 'bg-slate-700 text-slate-300'}
-            `}>
-              <Bot size={14} />
+    if (loading) {
+        return (
+            <div className="mt-3 p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-2 text-xs text-slate-500">
+                <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></span>
+                <span>Buffering secure video stream...</span>
             </div>
-            
-            <div>
-              <h4 className="text-xs font-bold text-slate-100 truncate w-full px-1">{agent.name}</h4>
-              <p className="text-[10px] text-slate-400 truncate w-full px-1">{agent.model.replace('gemini-', '').replace('-preview', '')}</p>
+        );
+    }
+
+    return (
+        <div className="mt-3 rounded-lg overflow-hidden border border-slate-700 bg-black shadow-lg">
+            <div className="flex items-center justify-between p-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                    <Film size={12} className="text-brand-400" />
+                    <span>Generated Video (Veo)</span>
+                </div>
+                <a 
+                    href={src} 
+                    download="generated-video.mp4" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-white flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
+                >
+                    <Download size={10} /> Download
+                </a>
             </div>
-
-            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 ${isSelected ? 'bg-green-500' : 'bg-slate-600'}`}></div>
-
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2" ref={menuRef}>
-               <button 
-                 onClick={(e) => { e.stopPropagation(); setShowAddMenu(!showAddMenu); }}
-                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-md z-20 border-2 border-slate-900 ${showAddMenu ? 'bg-brand-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-brand-500 hover:text-white'}`}
-               >
-                 <Plus size={12} />
-               </button>
-
-               {showAddMenu && (
-                 <div className="absolute top-8 left-1/2 -translate-x-1/2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden py-1">
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-800/50">Coordinator Pattern</div>
-                    <button onClick={(e) => handleAddClick(e, 'agent')} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2">
-                        <Bot size={12} className="text-brand-400" /> Sub-Agent (Managed)
-                    </button>
-                    
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-800/50 border-t border-slate-700/50 mt-1">Flow Control</div>
-                    <button onClick={(e) => handleAddClick(e, 'group', 'sequential')} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2">
-                        <ArrowDownCircle size={12} className="text-blue-400" /> Sequential Group
-                    </button>
-                    <button onClick={(e) => handleAddClick(e, 'group', 'concurrent')} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2">
-                        <Layers size={12} className="text-purple-400" /> Concurrent Group
-                    </button>
-                 </div>
-               )}
-            </div>
-          </div>
-      )}
-
-      {!isGroup && agent.subAgents && agent.subAgents.length > 0 && (
-        <div className="flex flex-col items-center mt-0">
-          <div className="h-6 w-px bg-slate-600"></div>
-          <div className="relative flex justify-center gap-8 pt-4 border-t border-slate-600 px-4">
-             {agent.subAgents.map((sub, idx) => (
-               <AgentNode 
-                 key={sub.id} 
-                 agent={sub} 
-                 selectedId={selectedId} 
-                 onSelect={onSelect}
-                 onAddSub={onAddSub}
-                 depth={depth + 1}
-                 isLast={idx === (agent.subAgents?.length || 0) - 1}
-               />
-             ))}
-          </div>
+            {blobUrl ? (
+                <video controls autoPlay loop className="w-full max-h-80 bg-black" src={blobUrl}>
+                    Your browser does not support the video tag.
+                </video>
+            ) : (
+                <div className="p-8 text-center text-xs text-red-400 bg-slate-950">
+                    <AlertCircle size={24} className="mx-auto mb-2 opacity-50" />
+                    {error}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
-
 
 export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent }) => {
   const [step, setStep] = useState<BuildStep>('input');
@@ -216,6 +131,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
   // Step 4: Testing & Billing State
   const [testMessages, setTestMessages] = useState<ChatMessage[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [testInput, setTestInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [activeToolLog, setActiveToolLog] = useState<string | null>(null);
@@ -254,6 +170,33 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       };
     }
     return current;
+  };
+
+  const deleteNodeFromTree = (nodeId: string, current: Agent): Agent | null => {
+      if (current.id === nodeId) return null;
+      if (current.subAgents) {
+          return {
+              ...current,
+              subAgents: current.subAgents
+                  .map(sub => deleteNodeFromTree(nodeId, sub))
+                  .filter((sub): sub is Agent => sub !== null)
+          };
+      }
+      return current;
+  };
+
+  const handleDeleteNode = (nodeId: string) => {
+      if (!rootAgent) return;
+      if (nodeId === rootAgent.id) return; // Cannot delete root
+      
+      const newRoot = deleteNodeFromTree(nodeId, rootAgent);
+      if (newRoot) {
+          setRootAgent(newRoot);
+          onAgentCreated(newRoot);
+          if (selectedAgentId === nodeId) {
+              setSelectedAgentId(newRoot.id);
+          }
+      }
   };
 
   const addSubNode = (parentId: string, current: Agent, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent'): Agent => {
@@ -315,6 +258,27 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       }
   }, [isTyping, step]);
 
+  // --- Session Sync Logic ---
+  useEffect(() => {
+    // Whenever testMessages changes, sync it to the current agent session and persist
+    if (step === 'testing' && rootAgent && currentSessionId && testMessages.length > 0) {
+        const sessions = rootAgent.sessions || [];
+        const sessionIndex = sessions.findIndex(s => s.id === currentSessionId);
+        
+        let updatedSessions = [...sessions];
+        if (sessionIndex >= 0) {
+            updatedSessions[sessionIndex] = { ...updatedSessions[sessionIndex], messages: testMessages };
+        } else {
+             // Should verify it exists, but safe fallback
+             updatedSessions = [{ id: currentSessionId, timestamp: new Date(), messages: testMessages }, ...updatedSessions];
+        }
+
+        const updatedAgent = { ...rootAgent, sessions: updatedSessions };
+        setRootAgent(updatedAgent); // Update local state
+        onAgentCreated(updatedAgent); // Persist to storage
+    }
+  }, [testMessages, currentSessionId, step]);
+
 
   // --- Architect Chat Logic ---
   const handleArchitectSend = async () => {
@@ -372,7 +336,8 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         model: 'gemini-2.5-flash',
         createdAt: new Date(),
         subAgents: [],
-        type: 'agent'
+        type: 'agent',
+        sessions: []
     };
     setRootAgent(defaultRoot);
     setSelectedAgentId(defaultRoot.id);
@@ -437,20 +402,37 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         }
     }
 
-    setTestMessages([
-        {
-            id: 'init',
-            role: 'assistant',
-            sender: 'System',
-            content: `System Online. Coordinator '${rootAgent.name}' initialized. I am ready to orchestrate your request.`,
-            timestamp: Date.now()
-        }
-    ]);
+    const initMsg: ChatMessage = {
+        id: 'init',
+        role: 'assistant',
+        sender: 'System',
+        content: `System Online. Coordinator '${rootAgent.name}' initialized. I am ready to orchestrate your request.`,
+        timestamp: Date.now()
+    };
+
+    setTestMessages([initMsg]);
+    
+    // Create new Session
+    const newSessionId = Date.now().toString();
+    const newSession: AgentSession = {
+        id: newSessionId,
+        timestamp: new Date(),
+        messages: [initMsg]
+    };
+    
+    const updatedAgent = { 
+        ...rootAgent, 
+        sessions: [newSession, ...(rootAgent.sessions || [])] 
+    };
+    setRootAgent(updatedAgent);
+    onAgentCreated(updatedAgent); // Initial Save
+    setCurrentSessionId(newSessionId);
+
     setStep('testing');
     setLastError(null);
   };
 
-  const handleRestartChat = () => {
+  const handleNewConversation = () => {
       handleStartTest();
   };
 
@@ -743,12 +725,13 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
              <div className="flex-1 overflow-auto p-10 flex items-center justify-center min-w-full min-h-full">
                 {rootAgent && (
                     <div className="transform scale-100 origin-center min-w-max pb-20">
-                       <AgentNode 
+                       <AgentDiagram 
                           agent={rootAgent} 
                           selectedId={selectedAgentId || ''} 
                           onSelect={(a) => setSelectedAgentId(a.id)}
                           onAddSub={handleAddSub}
-                          depth={0}
+                          onDelete={handleDeleteNode}
+                          depth={0} 
                        />
                     </div>
                 )}
@@ -905,11 +888,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
             </div>
             <div className="flex items-center gap-2">
                  <button 
-                    onClick={handleRestartChat}
+                    onClick={handleNewConversation}
                     className="text-xs text-slate-400 hover:text-brand-300 flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-md hover:bg-slate-700 transition-colors border border-slate-700"
                 >
-                    <RotateCcw size={12} />
-                    Restart Session
+                    <MessageSquarePlus size={12} />
+                    New Conversation
                 </button>
                 <button 
                     onClick={() => setStep('review')}
@@ -939,21 +922,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                                         const match = line.match(/!\[.*?\]\((.*?)\)/);
                                         if (match) return <img key={i} src={match[1]} alt="Generated" className="mt-2 rounded-lg border border-slate-700 shadow-md max-w-full" />;
                                     }
-                                    // Video Rendering
+                                    // Video Rendering via Secure Blob
                                     if (line.includes('[Download Video]')) {
                                        const match = line.match(/\[(.*?)\]\((.*?)\)/);
                                        if (match) {
-                                           return (
-                                               <div key={i} className="mt-3 rounded-lg overflow-hidden border border-slate-700 bg-black shadow-lg">
-                                                   <div className="flex items-center gap-2 p-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
-                                                       <Film size={12} />
-                                                       <span>Generated Video Preview</span>
-                                                   </div>
-                                                   <video controls className="w-full max-h-64" src={match[2]}>
-                                                       Your browser does not support the video tag.
-                                                   </video>
-                                               </div>
-                                           );
+                                           return <VideoMessage key={i} src={match[2]} />;
                                        }
                                     }
                                     // Source Links

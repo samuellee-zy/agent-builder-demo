@@ -16,6 +16,15 @@ export interface Agent {
   // Architecture Patterns
   type: 'agent' | 'group';
   groupMode?: 'sequential' | 'concurrent';
+
+  // Historical Data
+  sessions?: AgentSession[];
+}
+
+export interface AgentSession {
+  id: string;
+  timestamp: Date;
+  messages: ChatMessage[];
 }
 
 export interface ChatMessage {
@@ -44,9 +53,10 @@ export interface Tool {
 export const AVAILABLE_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast, cost-efficient, low latency.' },
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Best for reasoning and coding.' },
+  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', description: 'General image generation and editing.' },
   { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Image)', description: 'High-quality image generation and editing.' },
   { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast', description: 'Rapid video generation.' },
-  { id: 'imagen-4.0-generate-001', name: 'Imagen 3', description: 'Photorealistic image generation.' },
+  { id: 'imagen-4.0-generate-001', name: 'Imagen 4', description: 'Photorealistic image generation.' },
 ];
 
 export const AVAILABLE_TOOLS = [

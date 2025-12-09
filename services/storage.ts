@@ -1,4 +1,5 @@
 
+
 import { Agent } from '../types';
 
 const STORAGE_KEY = 'agent_builder_data_v1';
@@ -25,7 +26,7 @@ export const loadAgentsFromStorage = (): Agent[] => {
 
     return JSON.parse(serialized, (key, value) => {
       // Hydrate ISO date strings back into Date objects
-      if (key === 'createdAt' && typeof value === 'string') {
+      if ((key === 'createdAt' || key === 'timestamp') && typeof value === 'string') {
         const date = new Date(value);
         // Check if valid date
         if (!isNaN(date.getTime())) {

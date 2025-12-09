@@ -1,118 +1,42 @@
 
-# Agent Builder - Project Status & Documentation
+# Agent Builder
 
-## Overview
-**Agent Builder** is a web-based interface for designing, building, and testing Multi-Agent AI Systems using the Google Gemini ecosystem. It employs a **Coordinator Pattern** where a Root Agent orchestrates tasks by delegating to specialized Sub-Agents or execution groups.
+**Agent Builder** is a production-grade web application for designing, building, and orchestrating Multi-Agent AI Systems. Built on the Google Gemini ecosystem, it empowers users to create sophisticated agent teams using natural language, visual diagrams, and a powerful client-side orchestration engine.
 
----
+## 🚀 Key Features
 
-## Core Features
+### 🧠 Intelligent Design
+*   **Conversational Architect:** Describe your goal (e.g., "Create a marketing team that researches trends and generates video ads"), and the AI Architect will design the entire system for you.
+*   **Smart Patterns:** Automatically detects workflows and structures them into **Sequential** (step-by-step) or **Concurrent** (parallel) execution groups.
+*   **Robust Generation:** Uses a multi-model strategy (Gemini 3 Pro + Flash Fallback) to ensure valid architectures are always generated.
 
-### 1. Architect Interface
-- **Hero Input:** A natural language starting point for defining agent goals.
-- **Skip to Builder:** Users can bypass the chat interface and immediately access the Visual Diagram Builder with a default Root Agent template.
-- **Conversational Refinement:** An "AI Architect" (powered by Gemini 2.5 Flash) interviews the user to define the system structure, recommending models and tools.
-- **Visual Diagram Builder:** A recursive tree visualization allowing users to:
-  - Add Sub-Agents.
-  - Create **Sequential** or **Concurrent** execution groups.
-  - Visualize the hierarchy.
+### 🎨 Visual Studio
+*   **Recursive Diagram Builder:** Visualize your agent hierarchy.
+*   **Full Control:** Add sub-agents, create flow groups, and **delete nodes** directly from the canvas.
+*   **Inspector Panel:** Fine-tune every aspect of an agent: Name, Goal, Model, Tools, and Instructions (with AI Enhancement).
 
-### 2. Agent Configuration (Inspector Panel)
-- **Metadata:** Edit Name, Goal, and Description.
-- **Model Selection:** Assign specific models per agent (e.g., Veo for video, Gemini 3 Pro for reasoning).
-- **Tools Assignment:** Toggle tools from the library.
-- **Agent Operating Procedure (AOP):** Markdown editor with **AI Enhance** capability (Gemini 3 Pro) to professionalize instructions.
+### ⚡ Advanced Orchestration
+*   **Client-Side Engine:** Runs entirely in your browser using the `@google/genai` SDK.
+*   **Coordinator Pattern:** Automatically handles task delegation from Root Agents to Sub-Agents.
+*   **Secure Video Playback:** Generated Veo videos are securely fetched and streamed via local Blobs, ensuring smooth playback without auth errors.
+*   **Resilience:** Built-in exponential backoff handles API overloads (503) gracefully.
 
-### 3. Orchestration Engine (`services/orchestrator.ts`)
-- **Client-Side Execution:** The engine runs entirely in the browser using the `@google/genai` SDK.
-- **Coordinator Pattern:** Automatically injects a `delegate_to_agent` tool into parent agents, enabling recursive task delegation.
-- **Tool Execution:** Handles local JS tools (Calculator, Time) and native API tools (Google Search).
-- **Media Generation:**
-  - **Video:** Supports `veo-3.1-fast-generate-preview` with polling logic and MP4 rendering.
-  - **Image:** Supports `imagen-4.0-generate-001` and `gemini-3-pro-image-preview` with Base64 rendering.
-- **Streaming:** Emits `onAgentResponse` events to stream Sub-Agent thoughts and outputs to the UI in real-time.
-- **Resilience:** Implements exponential backoff retry logic for API calls.
+### 💾 Registry & History
+*   **Persistent Storage:** All agents are saved locally.
+*   **Session Logging:** Every conversation is recorded.
+*   **History Replay:** Review past interactions in the Agent Registry with a clean, redacted view for heavy media.
 
-### 4. Tools Library
-- **Native:** Google Search (Grounding with citations).
-- **Utility:** Calculator, System Time.
-- **Mock:** Simulated Web Search (for demos).
-- **Extensible:** Architecture supports adding new executable JS functions easily.
+### 🛠 Tools & Models
+*   **Integrated Library:** Google Search (Grounding), Calculator, System Time.
+*   **Multimodal Support:**
+    *   **Text/Logic:** Gemini 2.5 Flash, Gemini 3 Pro.
+    *   **Video:** Veo 3.1.
+    *   **Image:** Imagen 4, Gemini 3 Pro Image.
 
-### 5. Persistence
-- **LocalStorage:** Agents are automatically saved to the browser's local storage via `services/storage.ts`, persisting them across sessions.
+## 💻 Tech Stack
+*   **Frontend:** React 19, TypeScript, Tailwind CSS
+*   **AI:** Google GenAI SDK (`@google/genai`)
+*   **Icons:** Lucide React
 
----
-
-## Technical Reference (File-by-File)
-
-### `types.ts`
-**Role:** Domain Model Definitions.
-- **Key Interfaces:**
-  - `Agent`: Recursive structure (`subAgents: Agent[]`), supports `type` ('agent' | 'group') and `groupMode`.
-  - `Tool`: Defines both the Gemini `FunctionDeclaration` schema and the client-side `executable` JS function.
-  - `ChatMessage`: Includes `sender` to distinguish between Root and Sub-Agents.
-- **Constants:** `AVAILABLE_MODELS` (definitions of capabilities) and `AVAILABLE_TOOLS` (raw data).
-- **Type Augmentation:** Extends `Window` to support `aistudio` billing methods.
-
-### `services/orchestrator.ts`
-**Role:** The "Brain" / Execution Engine.
-- **`AgentOrchestrator` Class:**
-  - **`sendMessage()`**: Entry point.
-  - **`runAgentLoop()`**: The core recursive loop.
-    - **Logic:**
-      1. Detects Model Type (Veo vs Imagen vs Standard).
-      2. If Standard: Inject `delegate_to_agent` tool dynamically based on `subAgents`.
-      3. Call Gemini API.
-      4. If Tool Call -> Execute locally -> Loop back to API with result.
-      5. If Text -> Return.
-    - **Events:** Emits `onToolStart`, `onToolEnd`, `onAgentResponse` to update UI.
-  - **`retrySendMessage()`**: Implements exponential backoff for 429/503 errors.
-  - **`isPaidModelInUse()`**: Static utility to traverse the agent tree and detect if billing is required.
-
-### `services/mockAgentService.ts`
-**Role:** The "Architect" / System Design.
-- **`sendArchitectMessage()`**: Manages the chat personality that interviews the user.
-- **`generateArchitectureFromChat()`**: Takes the chat history and prompts Gemini 3 Pro to output a **recursive JSON structure** representing the final agent tree.
-  - *Critical:* Enforces strict JSON formatting and validates the Root Agent structure.
-
-### `services/storage.ts`
-**Role:** Persistence Layer.
-- **`saveAgentsToStorage()`**: Serializes the `Agent[]` to JSON strings in LocalStorage.
-- **`loadAgentsFromStorage()`**: Deserializes JSON and hydrates date strings back into `Date` objects.
-
-### `components/AgentBuilder.tsx`
-**Role:** Main Application Logic & View Controller.
-- **State Machine (`step`):**
-  - `input`: Hero / Chat View.
-  - `building`: Loading spinner during JSON generation.
-  - `review`: Split-pane view (Diagram + Inspector).
-  - `testing`: The final chat interface.
-- **`AgentNode` Component:** Recursive React component for rendering the tree diagram. Handles "Add Sub-Agent" and Group visualization.
-- **`handleSkipToVisualBuilder()`**: Initializes a default Root Agent and transitions immediately to the `review` step, bypassing the architect chat.
-- **`handleTestSendMessage()`**: Instantiates the `AgentOrchestrator` and binds UI callbacks to stream responses.
-- **Billing Integration:** Checks `window.aistudio.hasSelectedApiKey()` before starting tests with paid models.
-
-### `services/tools.ts`
-**Role:** Tool Registry.
-- Exports `AVAILABLE_TOOLS_REGISTRY` mapping IDs to implementations.
-- **Native Handling:** `google_search` is marked specifically for the Orchestrator to inject `googleSearch: {}` into the API config instead of a function declaration.
-
----
-
-## Supported Models Configuration
-| Model ID | Usage | Features |
-|----------|-------|----------|
-| `gemini-2.5-flash` | Default / Coordinator | Fast, Function Calling, Grounding |
-| `gemini-3-pro-preview` | Reasoning / Coding | Complex Logic, Function Calling, Grounding |
-| `veo-3.1-fast-generate-preview` | Video Agent | Video Generation (Requires Paid Key) |
-| `imagen-4.0-generate-001` | Image Agent | Image Generation (Requires Paid Key) |
-| `gemini-3-pro-image-preview` | Multimodal | High-Quality Image Gen & Understanding |
-
-## UX Details
-- **Billing Awareness:** Automatically detects paid models (Veo/Imagen) and prompts the user to select a Google Cloud Project API Key via `window.aistudio`.
-- **Chat Interface:**
-  - Sender identification (Root vs. Sub-Agent).
-  - Tool execution logs ("Thinking...", "Delegating...").
-  - Auto-focus and specialized rendering for Markdown, Video, and Images.
-  - Error handling with manual retry.
+## 📖 Documentation
+For a deep dive into the code structure, file responsibilities, and architectural patterns, please refer to **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.

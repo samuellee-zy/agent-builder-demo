@@ -47,7 +47,7 @@ export class AgentOrchestrator {
    * Checks if any agent in the hierarchy uses a paid model (Veo/Imagen/Gemini 3 Image).
    */
   static isPaidModelInUse(agent: Agent): boolean {
-    if (PAID_MODELS.some(prefix => agent.model.startsWith(prefix))) return true;
+    if (agent.model && PAID_MODELS.some(prefix => agent.model.startsWith(prefix))) return true;
     if (agent.subAgents) {
       return agent.subAgents.some(sub => AgentOrchestrator.isPaidModelInUse(sub));
     }
@@ -55,21 +55,31 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Wrapper for Chat.sendMessage with Retry Logic (Exponential Backoff)
+   * Generic Retry Wrapper for any async operation with Exponential Backoff.
+   * Handles 503 (Overloaded) and 429 (Rate Limit) specifically.
    */
-  private async retrySendMessage(chat: any, params: any, retries = 3): Promise<GenerateContentResponse> {
-    let delay = 1000;
+  private async retryOperation<T>(operation: () => Promise<T>, retries = 5, initialDelay = 2000): Promise<T> {
+    let delay = initialDelay;
     for (let i = 0; i < retries; i++) {
       try {
-        return await chat.sendMessage(params);
+        return await operation();
       } catch (error: any) {
         if (i === retries - 1) throw error; // Re-throw on last attempt
-        console.warn(`Attempt ${i + 1} failed, retrying in ${delay}ms...`, error);
+        
+        // Detect transient errors
+        const isTransient = error.status === 503 || error.status === 429 || error.message?.includes('overloaded');
+        
+        if (isTransient) {
+            console.warn(`API Busy/Overloaded (${error.status || '503'}). Retrying in ${delay}ms...`);
+        } else {
+            console.warn(`Operation failed. Retrying in ${delay}ms...`, error);
+        }
+        
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
       }
     }
-    throw new Error("Failed to send message after retries");
+    throw new Error("Operation failed after max retries");
   }
 
   /**
@@ -82,36 +92,47 @@ export class AgentOrchestrator {
     userMessage: string
   ): Promise<string> {
     
+    // Safety check for Group nodes which might lack a model property
     const modelId = agent.model || 'gemini-2.5-flash';
 
     // --- CASE 1: VIDEO GENERATION (VEO) ---
     if (modelId.startsWith('veo')) {
         this.onToolStart?.(agent.name, 'generateVideos', { prompt: userMessage });
         try {
-            let operation = await this.ai.models.generateVideos({
+            // Safe check for key append logic helper
+            const appendKey = (uri: string) => {
+                 if (!uri) return '';
+                 // Ensure we don't double append if somehow the URI already has the key (e.g. from a previous retry, though unlikely here)
+                 if (uri.includes('key=')) return uri;
+                 return `${uri}${uri.includes('?') ? '&' : '?'}key=${this.apiKey}`;
+            };
+
+            // Wrap generation in retry logic
+            let operation = await this.retryOperation(() => this.ai.models.generateVideos({
                 model: modelId,
                 prompt: userMessage,
                 config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
-            });
+            }));
 
             // Polling Loop
             let attempts = 0;
             const MAX_ATTEMPTS = 30; // 5 mins roughly
             while (!operation.done && attempts < MAX_ATTEMPTS) {
                 await new Promise(resolve => setTimeout(resolve, 10000)); // 10s interval
-                operation = await this.ai.operations.getVideosOperation({ operation: operation });
+                operation = await this.retryOperation(() => this.ai.operations.getVideosOperation({ operation: operation }));
                 attempts++;
             }
             
             if (!operation.done) throw new Error("Video generation timed out.");
 
-            const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
-            if (!videoUri) throw new Error("No video URI returned.");
+            const rawVideoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+            if (!rawVideoUri) throw new Error("No video URI returned.");
 
             this.onToolEnd?.(agent.name, 'generateVideos', 'Success');
             
             // Return Markdown to render video (Appended API Key for client-side playback)
-            const videoMarkdown = `\n\n### Generated Video\n[Download Video](${videoUri}&key=${this.apiKey})`;
+            const finalUri = appendKey(rawVideoUri);
+            const videoMarkdown = `\n\n### Generated Video\n[Download Video](${finalUri})`;
             this.onAgentResponse?.(agent.name, videoMarkdown);
             return videoMarkdown;
 
@@ -127,11 +148,12 @@ export class AgentOrchestrator {
     if (modelId.startsWith('imagen')) {
         this.onToolStart?.(agent.name, 'generateImages', { prompt: userMessage });
         try {
-            const response = await this.ai.models.generateImages({
+            // Wrap in retry logic
+            const response = await this.retryOperation(() => this.ai.models.generateImages({
                 model: modelId,
                 prompt: userMessage,
                 config: { numberOfImages: 1, aspectRatio: '1:1', outputMimeType: 'image/jpeg' }
-            });
+            }));
             
             const b64 = response.generatedImages?.[0]?.image?.imageBytes;
             if (!b64) throw new Error("No image bytes returned.");
@@ -204,13 +226,23 @@ export class AgentOrchestrator {
     const toolsConfig: any[] = [];
     const supportsFunctions = MODELS_SUPPORTING_FUNCTIONS.includes(modelId);
 
+    // Check if we have active function declarations
+    const hasFunctions = allExecutableTools.length > 0 && supportsFunctions;
+
     // ONLY add function declarations if the model supports them.
-    if (allExecutableTools.length > 0 && supportsFunctions) {
+    if (hasFunctions) {
       toolsConfig.push({ functionDeclarations: allExecutableTools.map(t => t.functionDeclaration) });
     }
     
     if (useGoogleSearch) {
-      toolsConfig.push({ googleSearch: {} });
+      // PREVENT ERROR: Cannot mix Function Calling and Google Search on most models.
+      // Prioritize Functions (Delegation) over Search to prevent Orchestration breakdown.
+      if (hasFunctions) {
+          console.warn(`[Orchestrator] Model ${modelId} cannot mix Functions and Google Search. Disabling Search for this turn to allow delegation.`);
+          // We intentionally omit googleSearch here
+      } else {
+          toolsConfig.push({ googleSearch: {} });
+      }
     }
 
     let systemInstruction = agent.instructions;
@@ -239,7 +271,11 @@ ${subAgents.map(sa => `- **${sa.name}**: ${sa.goal}`).join('\n')}`;
     while (turns < MAX_TURNS) {
       turns++;
       
-      const result: GenerateContentResponse = await this.retrySendMessage(chat, { message: currentMessage });
+      // Use retry wrapper for sendMessage
+      const result: GenerateContentResponse = await this.retryOperation(() => 
+          chat.sendMessage({ message: currentMessage })
+      );
+      
       const calls = result.functionCalls;
       
       if (calls && calls.length > 0) {

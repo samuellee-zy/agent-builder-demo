@@ -1,8 +1,10 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AgentBuilder } from './components/AgentBuilder';
 import { ToolsLibrary } from './components/ToolsLibrary';
+import { AgentRegistry } from './components/AgentRegistry';
 import { Agent, SAMPLE_AGENTS } from './types';
 import { saveAgentsToStorage, loadAgentsFromStorage } from './services/storage';
 import { LayoutDashboard, Radio } from 'lucide-react';
@@ -77,6 +79,7 @@ const App: React.FC = () => {
         {activeTab === 'overview' && <Overview />}
         {activeTab === 'watchtower' && <Watchtower />}
         {activeTab === 'tools' && <ToolsLibrary />}
+        {activeTab === 'registry' && <AgentRegistry agents={agents} />}
         {activeTab === 'aop' && (
           // Key forces remount when switching between 'New' (undefined) and a selected agent
           <AgentBuilder 
