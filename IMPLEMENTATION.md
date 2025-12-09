@@ -1,4 +1,5 @@
 
+
 # Agent Builder - Implementation Reference
 
 ## Project Overview
@@ -49,7 +50,7 @@ The runtime "Brain" running in the browser.
 - **Problem:** Veo video URIs require an API key to be accessed. Appending the key directly in a `<video src="...">` tag can lead to CORS issues or security warnings.
 - **Solution:** The `VideoMessage` component:
   1. Takes the authenticated URI.
-  2. Uses `fetch()` (with the key) to download the video as a `Blob`.
+  2. Uses `fetch()` to download the video as a `Blob`.
   3. Creates a local `URL.createObjectURL(blob)`.
   4. Renders the `<video>` tag using this local object URL, ensuring reliable playback.
 
@@ -59,7 +60,8 @@ The runtime "Brain" running in the browser.
   - Every message sent in the "Test" interface is recorded in real-time to `agent.sessions`.
   - Timestamps are hydrated from JSON strings back to `Date` objects on load.
 - **Registry UI:**
-  - **Grid View:** Summarizes agents.
+  - **Grid View:** Summarizes agents, showing stats for models and tools.
+  - **Deletion:** Supports permanent deletion of individual agents via the grid view, triggering an update to LocalStorage.
   - **Read-Only Inspector:** Reuses the `AgentDiagram` but locks interactions. Allows users to click nodes to view their config without risk of editing.
   - **History Replay:** A chat viewer that reconstructs past conversations. Heavy media (Videos) are replaced with placeholders (`[Video Generated]`) to keep the history view lightweight.
 
@@ -75,12 +77,18 @@ The runtime "Brain" running in the browser.
 
 ### `services/tools.ts`
 - **Registry:** `AVAILABLE_TOOLS_REGISTRY` maps IDs to implementations.
-- **Native Tools:** `google_search` is marked for special handling in the Orchestrator.
+- **List:** `AVAILABLE_TOOLS_LIST` provides a flat array for UI iteration.
+- **Tools:** Includes standard utilities (`calculator`, `google_search`) and specialized Customer Service tools (`crm_customer_lookup`, `check_order_status`, etc.).
+
+### `components/ToolsLibrary.tsx`
+- **Dynamic Source:** Imports directly from `services/tools.ts` to ensure consistency with the Orchestrator.
+- **Categorization:** Groups tools visually by their `category` field for better browsing.
 
 ### `components/AgentDiagram.tsx`
 - **Recursive Component:** Renders the tree structure.
 - **Visuals:** Distinguishes between "Sequential" (Vertical stack) and "Concurrent" (Horizontal row) groups.
 - **Interactions:** Supports "Add Sub-Agent", "Add Group", and "Delete Node" (via trash icon).
+- **Sequential Numbering:** If a group is `sequential`, children render with a badge (e.g., `#1`, `#2`) to indicate execution order.
 
 ### `components/Sidebar.tsx`
 - **Navigation:** Tabs for Overview, Watchtower, AOP, Registry, Tools.
@@ -89,6 +97,7 @@ The runtime "Brain" running in the browser.
 ### `App.tsx`
 - **Routing:** Manages active tab state.
 - **Persistence:** Triggers `saveAgentsToStorage` whenever the agent list updates.
+- **State Actions:** Handles `handleDeleteAgent` to remove agents globally.
 
 ---
 
@@ -101,6 +110,7 @@ The runtime "Brain" running in the browser.
 | `gemini-2.5-flash-image` | General Image | Fast image editing/generation |
 | `gemini-3-pro-image-preview` | High-Quality Image | Multimodal understanding |
 | `veo-3.1-fast-generate-preview` | Video Generation | Video Agents (Paid Key Required) |
+| `veo-3.0-fast-generate` | Fast Video Generation | Legacy Video Agents (Paid Key Required) |
 | `imagen-4.0-generate-001` | Photorealistic Image | Art/Design Agents (Paid Key Required) |
 
 ---

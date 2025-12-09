@@ -12,6 +12,7 @@ interface AgentDiagramProps {
   depth?: number;
   isLast?: boolean;
   readOnly?: boolean;
+  sequenceIndex?: number; // New prop for sequential numbering
 }
 
 export const AgentDiagram: React.FC<AgentDiagramProps> = ({ 
@@ -22,7 +23,8 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
   onDelete, 
   depth = 0, 
   isLast,
-  readOnly = false
+  readOnly = false,
+  sequenceIndex
 }) => {
   const isSelected = agent.id === selectedId;
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -99,8 +101,9 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
                             onSelect={onSelect}
                             onAddSub={onAddSub}
                             onDelete={onDelete}
-                            depth={0} 
+                            depth={depth + 1} // Fix: Ensure depth allows deletion
                             readOnly={readOnly}
+                            sequenceIndex={isSequential ? idx + 1 : undefined} // Pass sequence number
                         />
                       ))
                   ) : (
@@ -139,6 +142,13 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
               ${readOnly ? 'cursor-default' : 'cursor-pointer'}
             `}
           >
+            {/* Sequence Badge */}
+            {sequenceIndex !== undefined && (
+                <div className="absolute -top-3 -left-2 bg-slate-900 border border-slate-700 text-slate-300 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm z-20">
+                    #{sequenceIndex}
+                </div>
+            )}
+
             <div className={`
               w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-inner
               ${isSelected ? 'bg-brand-500 text-white' : 'bg-slate-700 text-slate-300'}

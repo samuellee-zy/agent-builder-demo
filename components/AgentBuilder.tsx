@@ -27,7 +27,9 @@ import {
   AlertCircle,
   PencilRuler,
   MessageSquarePlus,
-  Download
+  Download,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 interface AgentBuilderProps {
@@ -128,6 +130,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialAgent?.id || null);
   const [enhancePrompt, setEnhancePrompt] = useState('');
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   // Step 4: Testing & Billing State
   const [testMessages, setTestMessages] = useState<ChatMessage[]>([]);
@@ -361,6 +364,14 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     } else {
       handleUpdateSelectedAgent({ tools: [...currentTools, toolId] });
     }
+  };
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => 
+        prev.includes(category) 
+        ? prev.filter(c => c !== category) 
+        : [...prev, category]
+    );
   };
 
   const handleAddSub = (parentId: string, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent') => {
@@ -800,22 +811,52 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                          {selectedAgent.type === 'agent' && (
                              <div className="space-y-2">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tools</label>
-                                <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-                                    {AVAILABLE_TOOLS_LIST.map(tool => {
-                                        const isSelected = selectedAgent.tools?.includes(tool.id);
+                                <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-80 overflow-y-auto custom-scrollbar">
+                                    {/* Categorized Tools List */}
+                                    {Array.from(new Set(AVAILABLE_TOOLS_LIST.map(t => t.category))).map(category => {
+                                        const categoryTools = AVAILABLE_TOOLS_LIST.filter(t => t.category === category);
+                                        const isExpanded = expandedCategories.includes(category);
+                                        const selectedCount = categoryTools.filter(t => selectedAgent.tools?.includes(t.id)).length;
+
                                         return (
-                                            <div 
-                                                key={tool.id} 
-                                                onClick={() => handleToggleTool(tool.id)}
-                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-brand-900/30 border border-brand-500/50' : 'hover:bg-slate-700'}`}
-                                            >
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <Wrench size={12} className={isSelected ? 'text-brand-400' : 'text-slate-500'} />
-                                                    <span className={`text-xs ${isSelected ? 'text-white font-medium' : 'text-slate-400'}`}>{tool.name}</span>
-                                                </div>
-                                                {isSelected && <Check size={12} className="text-brand-500" />}
+                                            <div key={category} className="border border-slate-700/50 rounded-lg bg-slate-800/30 overflow-hidden mb-2 last:mb-0">
+                                                <button
+                                                    onClick={() => toggleCategory(category)}
+                                                    className="w-full flex items-center justify-between p-2 text-left hover:bg-slate-700/50 transition-colors"
+                                                >
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{category}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        {selectedCount > 0 && (
+                                                            <span className="text-[9px] bg-brand-900/50 text-brand-300 px-1.5 py-0.5 rounded-full border border-brand-500/20">
+                                                                {selectedCount} selected
+                                                            </span>
+                                                        )}
+                                                        {isExpanded ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
+                                                    </div>
+                                                </button>
+
+                                                {isExpanded && (
+                                                    <div className="p-2 space-y-1 border-t border-slate-700/50 bg-slate-900/30">
+                                                        {categoryTools.map(tool => {
+                                                            const isSelected = selectedAgent.tools?.includes(tool.id);
+                                                            return (
+                                                                <div 
+                                                                    key={tool.id} 
+                                                                    onClick={() => handleToggleTool(tool.id)}
+                                                                    className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-brand-900/30 border border-brand-500/50' : 'hover:bg-slate-700'}`}
+                                                                >
+                                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                                        <Wrench size={12} className={isSelected ? 'text-brand-400' : 'text-slate-500'} />
+                                                                        <span className={`text-xs ${isSelected ? 'text-white font-medium' : 'text-slate-400'}`}>{tool.name}</span>
+                                                                    </div>
+                                                                    {isSelected && <Check size={12} className="text-brand-500" />}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
-                                        );
+                                        )
                                     })}
                                 </div>
                              </div>

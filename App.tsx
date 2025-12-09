@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AgentBuilder } from './components/AgentBuilder';
@@ -37,6 +36,15 @@ const App: React.FC = () => {
         return [newAgent, ...prev];
     });
     // Don't auto-select here, Builder handles internal state, but keeps persistence updated
+  };
+
+  const handleDeleteAgent = (agentId: string) => {
+      setAgents(prev => prev.filter(a => a.id !== agentId));
+      // If the deleted agent was currently selected in the builder, clear it
+      if (selectedAgent?.id === agentId) {
+          setSelectedAgent(undefined);
+          // Optionally reset tab if needed, but staying on current tab is usually fine
+      }
   };
 
   const resetToNew = () => {
@@ -79,7 +87,12 @@ const App: React.FC = () => {
         {activeTab === 'overview' && <Overview />}
         {activeTab === 'watchtower' && <Watchtower />}
         {activeTab === 'tools' && <ToolsLibrary />}
-        {activeTab === 'registry' && <AgentRegistry agents={agents} />}
+        {activeTab === 'registry' && (
+            <AgentRegistry 
+                agents={agents} 
+                onDeleteAgent={handleDeleteAgent} 
+            />
+        )}
         {activeTab === 'aop' && (
           // Key forces remount when switching between 'New' (undefined) and a selected agent
           <AgentBuilder 

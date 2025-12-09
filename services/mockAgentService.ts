@@ -61,7 +61,7 @@ GUIDELINES:
 2. If the request is vague, ask *one* clarifying question about the desired workflow.
 3. **CRITICAL**: When proposing a design, you MUST explicitly mention:
    - **Models**: Which model assigns to which agent (e.g., "Gemini 3 Pro for reasoning", "Veo 3.1 for video").
-   - **Tools**: Which tools from the library (e.g., 'Google Search', 'Calculator') each agent needs.
+   - **Tools**: Recommend specific tools from the library (e.g., 'CRM Lookup' for identifying users, 'Order Status' for logistics).
    - **Patterns**: How agents are organized. Specify if sub-agents are:
      - *Managed* (Standard delegation).
      - *Sequential* (Step-by-step strict flow).
@@ -74,10 +74,11 @@ AVAILABLE MODELS:
 - Gemini 3 Pro: Best for reasoning, coding, complex instruction following.
 - Gemini 2.5 Flash Image: General image generation/editing.
 - Veo 3.1: For video generation.
+- Veo 3.0 Fast: For legacy fast video generation.
 - Imagen 4: For photorealistic image generation.
 
 AVAILABLE TOOLS:
-${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).join('\n')}
 `;
 
     const chatHistory = history.map(h => ({
@@ -121,6 +122,7 @@ AVAILABLE MODELS:
 - 'gemini-2.5-flash-image' (General Image Generation/Editing)
 - 'gemini-3-pro-image-preview' (High-Quality Image Understanding/Generation)
 - 'veo-3.1-fast-generate-preview' (Video Generation)
+- 'veo-3.0-fast-generate' (Fast Video Generation)
 - 'imagen-4.0-generate-001' (Image Generation)
 
 INSTRUCTIONS:
@@ -131,9 +133,14 @@ INSTRUCTIONS:
    - **Concurrent**: If tasks can happen at the same time (e.g. Search Twitter AND Search Google), wrap them in a sub-node with "type": "group" and "groupMode": "concurrent".
    - **Managed**: If the Root agent just needs to delegate to various experts ad-hoc, put them as direct sub-agents of the root.
    - **Hierarchy**: Nest groups correctly. For example, a "Root" can contain a "Sequential Group", which contains "Agent A" and "Agent B".
-3. **Tools**: Assign relevant tool IDs. If a user needs Google Search, use 'google_search'.
+3. **Tools**: Assign relevant tool IDs. 
+   - Use 'crm_customer_lookup' for identifying users.
+   - Use 'check_order_status' for tracking.
+   - Use 'kb_search' for answering policy questions.
+   - Use 'create_support_ticket' for escalations.
+   - Use 'google_search' for external information.
 4. **Models**: Assign the correct model ID based on the task. 
-   - Use 'veo-3.1-fast-generate-preview' ONLY for agents specifically tasked with creating videos.
+   - Use 'veo-3.1-fast-generate-preview' OR 'veo-3.0-fast-generate' ONLY for agents specifically tasked with creating videos.
    - Use 'imagen-4.0-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
    - Use 'gemini-2.5-flash-image' for general image editing or creation tasks.
    - Use 'gemini-3-pro-preview' for complex reasoning or coding.

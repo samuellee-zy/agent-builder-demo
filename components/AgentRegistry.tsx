@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Agent, AgentSession, ChatMessage } from '../types';
 import { AgentDiagram } from './AgentDiagram';
 import { AVAILABLE_TOOLS_REGISTRY } from '../services/tools';
-import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle } from 'lucide-react';
+import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2 } from 'lucide-react';
 
 interface AgentRegistryProps {
   agents: Agent[];
+  onDeleteAgent: (id: string) => void;
 }
 
 // Date formatter helper
@@ -26,7 +27,7 @@ const formatDate = (date: Date | string, includeTime = false) => {
   return dateStr;
 };
 
-export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents }) => {
+export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [selectedSession, setSelectedSession] = useState<AgentSession | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -58,6 +59,13 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents }) => {
   };
 
   const selectedNode = selectedAgent && selectedNodeId ? findNodeById(selectedNodeId, selectedAgent) : null;
+
+  const handleDeleteClick = (e: React.MouseEvent, agentId: string) => {
+      e.stopPropagation();
+      if (window.confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
+          onDeleteAgent(agentId);
+      }
+  };
 
   const renderSessionList = () => {
     if (!selectedAgent) return null;
@@ -315,8 +323,16 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents }) => {
                 <div 
                     key={agent.id}
                     onClick={() => setSelectedAgent(agent)}
-                    className="bg-slate-800 border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-brand-500/50 hover:bg-slate-800/80 transition-all group"
+                    className="relative bg-slate-800 border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-brand-500/50 hover:bg-slate-800/80 transition-all group"
                 >
+                    <button
+                        onClick={(e) => handleDeleteClick(e, agent.id)}
+                        className="absolute top-3 right-3 p-2 text-slate-600 hover:text-red-400 hover:bg-slate-900/50 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100"
+                        title="Delete Agent"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+
                     <div className="flex justify-between items-start mb-3">
                         <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                             <Bot size={20} />
@@ -325,7 +341,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents }) => {
                             {formatDate(agent.createdAt)}
                         </span>
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-1">{agent.name}</h3>
+                    <h3 className="text-lg font-bold text-white mb-1 pr-8">{agent.name}</h3>
                     <p className="text-sm text-slate-400 line-clamp-2 mb-4 h-10">{agent.description}</p>
                     
                     <div className="flex items-center gap-4 pt-4 border-t border-slate-700/50">

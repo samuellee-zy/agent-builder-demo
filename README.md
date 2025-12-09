@@ -1,4 +1,5 @@
 
+
 # Agent Builder
 
 **Agent Builder** is a production-grade web application for designing, building, and orchestrating Multi-Agent AI Systems. Built on the Google Gemini ecosystem, it empowers users to create sophisticated agent teams using natural language, visual diagrams, and a powerful client-side orchestration engine.
@@ -12,7 +13,8 @@
 
 ### 🎨 Visual Studio
 *   **Recursive Diagram Builder:** Visualize your agent hierarchy.
-*   **Full Control:** Add sub-agents, create flow groups, and **delete nodes** directly from the canvas.
+*   **Sequential Order Indicators:** Automatically badges sequential agents (e.g., #1, #2) to clearly visualize execution flow.
+*   **Full Control:** Add sub-agents, create flow groups, and **delete nodes** directly from the canvas (including nested agents).
 *   **Inspector Panel:** Fine-tune every aspect of an agent: Name, Goal, Model, Tools, and Instructions (with AI Enhancement).
 
 ### ⚡ Advanced Orchestration
@@ -23,14 +25,17 @@
 
 ### 💾 Registry & History
 *   **Persistent Storage:** All agents are saved locally.
+*   **Agent Management:** View, audit, and **permanently delete** agents from the registry.
 *   **Session Logging:** Every conversation is recorded.
 *   **History Replay:** Review past interactions in the Agent Registry with a clean, redacted view for heavy media.
 
 ### 🛠 Tools & Models
-*   **Integrated Library:** Google Search (Grounding), Calculator, System Time.
+*   **Integrated Library:** 
+    *   **Customer Service:** CRM Lookup, Order Status, Knowledge Base, Ticket Creation.
+    *   **Utilities:** Google Search (Grounding), Calculator, System Time.
 *   **Multimodal Support:**
     *   **Text/Logic:** Gemini 2.5 Flash, Gemini 3 Pro.
-    *   **Video:** Veo 3.1.
+    *   **Video:** Veo 3.1, Veo 3.0 Fast.
     *   **Image:** Imagen 4, Gemini 3 Pro Image.
 
 ## 💻 Tech Stack
