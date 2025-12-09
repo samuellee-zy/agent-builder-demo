@@ -83,6 +83,10 @@ The runtime "Brain" running in the browser.
 ### `components/ToolsLibrary.tsx`
 - **Dynamic Source:** Imports directly from `services/tools.ts` to ensure consistency with the Orchestrator.
 - **Categorization:** Groups tools visually by their `category` field for better browsing.
+- **Inspector Panel:** 
+  - Sliding drawer ("Sheet" pattern) for tool details.
+  - **Source View:** Displays `tool.executable.toString()` to show raw logic.
+  - **Mock Tester:** Dynamically generates input fields based on `functionDeclaration` schema and executes the function in-browser to show sample outputs.
 
 ### `components/AgentDiagram.tsx`
 - **Recursive Component:** Renders the tree structure.

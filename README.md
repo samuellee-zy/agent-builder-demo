@@ -33,6 +33,9 @@
 *   **Integrated Library:** 
     *   **Customer Service:** CRM Lookup, Order Status, Knowledge Base, Ticket Creation.
     *   **Utilities:** Google Search (Grounding), Calculator, System Time.
+*   **Inspector & Mock Tester:** 
+    *   View full source code for every tool.
+    *   **Interactive Playground:** Test tools with custom parameters and see live results directly in the UI.
 *   **Multimodal Support:**
     *   **Text/Logic:** Gemini 2.5 Flash, Gemini 3 Pro.
     *   **Video:** Veo 3.1, Veo 3.0 Fast.
