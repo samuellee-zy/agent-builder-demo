@@ -1,0 +1,5 @@
+{
+  "name": "Agent Builder",
+  "description": "A comprehensive interface for defining, building, and testing AI agents with natural language.",
+  "requestFramePermissions": []
+}
