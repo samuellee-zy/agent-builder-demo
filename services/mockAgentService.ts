@@ -94,11 +94,12 @@ GUIDELINES:
 
 AVAILABLE MODELS:
 - Gemini 2.5 Flash: Good for general tasks, speed.
+- Gemini 2.5 Flash Lite: Extremely cost-effective, high throughput.
 - Gemini 3 Pro: Best for reasoning, coding, complex instruction following.
 - Gemini 2.5 Flash Image: General image generation and editing.
 - Veo 3.1: For video generation.
-- Veo 3.0 Fast: For legacy fast video generation.
 - Imagen 4: For photorealistic image generation.
+- Imagen 4 Fast: For fast photorealistic image generation.
 
 AVAILABLE TOOLS:
 ${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).join('\n')}
@@ -141,12 +142,13 @@ ${AVAILABLE_TOOLS_LIST.map(t => `- ID: ${t.id}, Name: ${t.name}, Desc: ${t.descr
 
 AVAILABLE MODELS:
 - 'gemini-2.5-flash' (Default, Text)
+- 'gemini-flash-lite-latest' (Cost-effective, Text)
 - 'gemini-3-pro-preview' (Complex Text/Reasoning)
 - 'gemini-2.5-flash-image' (General Image Generation/Editing)
 - 'gemini-3-pro-image-preview' (High-Quality Image Understanding/Generation)
 - 'veo-3.1-fast-generate-preview' (Video Generation)
-- 'veo-3.0-fast-generate' (Fast Video Generation)
 - 'imagen-4.0-generate-001' (Image Generation)
+- 'imagen-4.0-fast-generate-001' (Fast Image Generation)
 
 INSTRUCTIONS:
 1. **Root Agent**: You MUST create a top-level 'Root Agent'.
@@ -167,10 +169,11 @@ INSTRUCTIONS:
    - Use 'create_support_ticket' for escalations.
    - Use 'google_search' for external information.
 5. **Models**: Assign the correct model ID based on the task. 
-   - Use 'veo-3.1-fast-generate-preview' OR 'veo-3.0-fast-generate' ONLY for agents specifically tasked with creating videos.
-   - Use 'imagen-4.0-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
+   - Use 'veo-3.1-fast-generate-preview' ONLY for agents specifically tasked with creating videos.
+   - Use 'imagen-4.0-generate-001' OR 'imagen-4.0-fast-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
    - Use 'gemini-2.5-flash-image' for general image editing or creation tasks.
    - Use 'gemini-3-pro-preview' for complex reasoning or coding.
+   - Use 'gemini-flash-lite-latest' for simple, high-volume text tasks.
 6. **Operating Procedures**: Generate detailed markdown 'instructions' for each agent.
 
 OUTPUT FORMAT (JSON ONLY):

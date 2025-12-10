@@ -1,5 +1,3 @@
-
-
 import { FunctionDeclaration } from "@google/genai";
 
 export interface Agent {
@@ -20,6 +18,9 @@ export interface Agent {
   // Historical Data
   sessions?: AgentSession[];
   evaluations?: EvaluationReport[];
+  
+  // Watchtower Cache
+  watchtowerAnalysis?: WatchtowerAnalysis;
 }
 
 export interface AgentSession {
@@ -50,6 +51,39 @@ export interface Tool {
   functionDeclaration: FunctionDeclaration; 
   // The actual JS implementation
   executable: (args: any) => Promise<any> | any;
+}
+
+// Watchtower / Analysis Interfaces
+export interface IntentGroup {
+  id: string;
+  name: string; // e.g. "Order Status Inquiry"
+  description: string;
+  count: number; // How many times this intent was detected
+  avgSentiment: number; // 0-100
+  avgLatency: number;
+  sampleSessionIds: string[];
+}
+
+export interface WatchtowerRecommendation {
+  id: string;
+  category: 'Knowledge' | 'Tooling' | 'Behavior';
+  title: string;
+  description: string;
+  impact: 'High' | 'Medium' | 'Low';
+  actionContext?: string; // Code snippet or instruction text to apply
+}
+
+export interface WatchtowerAnalysis {
+  timestamp: Date;
+  sessionsAnalyzed: number;
+  globalScore: number; // 0-100 satisfaction
+  intents: IntentGroup[];
+  recommendations: WatchtowerRecommendation[];
+  stats: {
+    avgLatency: number;
+    errorRate: number;
+    totalMessages: number;
+  };
 }
 
 // Evaluation Interfaces
@@ -89,12 +123,13 @@ export interface EvaluationReport {
 
 export const AVAILABLE_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast, cost-efficient, low latency.' },
+  { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash Lite', description: 'Extremely cost-effective, high throughput.' },
   { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Best for reasoning and coding.' },
   { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', description: 'General image generation and editing.' },
   { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Image)', description: 'High-quality image generation and editing.' },
   { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast', description: 'Rapid video generation.' },
-  { id: 'veo-3.0-fast-generate', name: 'Veo 3.0 Fast', description: 'Legacy fast video generation.' },
   { id: 'imagen-4.0-generate-001', name: 'Imagen 4', description: 'Photorealistic image generation.' },
+  { id: 'imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', description: 'Fast photorealistic image generation.' },
 ];
 
 export const AVAILABLE_TOOLS = [

@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Agent, AgentSession, ChatMessage, EvaluationReport, EvaluationSession, AVAILABLE_MODELS } from '../types';
 import { AgentDiagram } from './AgentDiagram';
@@ -48,7 +47,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   const [evalProgress, setEvalProgress] = useState('');
   const [selectedReport, setSelectedReport] = useState<EvaluationReport | null>(null);
 
-  // Helper to count architecture nodes
+  // Helper to count nodes
   const countNodes = (agent: Agent): { models: number, tools: number } => {
     let models = agent.type === 'agent' ? 1 : 0;
     let tools = agent.tools?.length || 0;
@@ -62,7 +61,6 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
     return { models, tools };
   };
 
-  // Helper to find specific node in tree
   const findNodeById = (id: string, current: Agent): Agent | null => {
     if (current.id === id) return current;
     if (current.subAgents) {
@@ -111,8 +109,6 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
       }
   };
 
-  // --- RENDERERS ---
-
   const renderSessionList = () => {
     if (!selectedAgent) return null;
     const sessions = selectedAgent.sessions || [];
@@ -131,7 +127,9 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                   <MessageSquare size={14} />
                </div>
                <div>
-                  <h4 className="text-xs font-bold text-slate-300">Session {session.id.slice(-4)}</h4>
+                  <h4 className="text-xs font-bold text-slate-300">
+                      Session {session.id.length > 6 ? `#${session.id.slice(-4)}` : `#${session.id}`}
+                  </h4>
                   <p className="text-[10px] text-slate-500 flex items-center gap-1">
                      <Clock size={10} />
                      {formatDate(session.timestamp, true)}
@@ -173,7 +171,6 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                            ? 'bg-slate-700 text-white rounded-tr-none' 
                            : 'bg-slate-800 text-slate-300 border border-slate-700 rounded-tl-none'
                        }`}>
-                           {/* Sender & Latency Badge */}
                            {(msg.sender || msg.latency) && (
                                <div className="flex items-center justify-between mb-1 gap-4">
                                    {msg.sender && <span className="text-[10px] font-bold text-slate-500 uppercase">{msg.sender}</span>}
@@ -407,7 +404,22 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                                                   <div className={`text-xs px-3 py-2 rounded-lg max-w-[90%] ${
                                                       msg.role === 'user' ? 'bg-slate-800 text-slate-300' : 'bg-brand-900/20 text-brand-100 border border-brand-500/20'
                                                   }`}>
-                                                      {msg.content}
+                                                      {/* Parsed Content (Rich Media Support) */}
+                                                      <div className="whitespace-pre-wrap">
+                                                        {msg.content.split('\n').map((line, i) => {
+                                                            if (line.includes('[Download Video]')) {
+                                                                const match = line.match(/\[(.*?)\]\((.*?)\)/);
+                                                                if (match) return <VideoMessage key={i} src={match[2]} />;
+                                                            }
+                                                            const imgMatch = line.match(/!\[(.*?)\]\((.*?)\)/);
+                                                            if (imgMatch) {
+                                                                return (
+                                                                    <img key={i} src={imgMatch[2]} alt="Generated" className="mt-2 rounded border border-slate-700 max-w-full h-auto" />
+                                                                );
+                                                            }
+                                                            return <div key={i}>{line}</div>
+                                                        })}
+                                                      </div>
                                                   </div>
                                                   {msg.latency && <span className="text-[9px] text-yellow-500/80 mt-0.5">{msg.latency}ms</span>}
                                               </div>
@@ -609,7 +621,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
              {activeTab === 'history' && (
                  selectedSession ? renderSessionViewer(
                      selectedSession.messages, 
-                     `Session ${selectedSession.id.slice(-4)}`, 
+                     `Session ${selectedSession.id.length > 6 ? '#' + selectedSession.id.slice(-4) : '#' + selectedSession.id}`, 
                      formatDate(selectedSession.timestamp, true),
                      () => setSelectedSession(null)
                  ) : (

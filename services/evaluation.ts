@@ -30,6 +30,13 @@ const cleanJson = (text: string): string => {
   return clean;
 };
 
+// Helper to strip base64 image data for the Judge to save tokens
+const compressForJudge = (text: string): string => {
+  // Matches: ![alt](data:image/type;base64,DATA)
+  // Replaces with: ![Generated Image] (Image data hidden to save tokens)
+  return text.replace(/!\[(.*?)\]\(data:image\/[^;]+;base64,[^)]+\)/g, '![Generated Image] (Image data hidden to save tokens)');
+};
+
 export class EvaluationService {
   private ai: GoogleGenAI;
 
@@ -130,9 +137,25 @@ export class EvaluationService {
     });
 
     // 2. Setup System Under Test (Orchestrator)
+    // We must capture onAgentResponse to get "Rich" content (Images/Videos)
+    let turnMessages: ChatMessage[] = [];
+    
     const orchestrator = new AgentOrchestrator({
       apiKey: process.env.API_KEY || '',
       rootAgent: agent,
+      onAgentResponse: (name, content) => {
+          // DEDUPLICATION: Check against the last message in THIS turn buffer
+          const lastMsg = turnMessages[turnMessages.length - 1];
+          if (lastMsg && lastMsg.content.trim() === content.trim()) return;
+
+          turnMessages.push({
+             id: Date.now().toString() + Math.random(),
+             role: 'assistant',
+             sender: name,
+             content: content,
+             timestamp: Date.now()
+          });
+      }
     });
 
     let currentInput = "Hello."; // Start signal
@@ -151,37 +174,58 @@ export class EvaluationService {
       });
 
       for (let i = 0; i < MAX_TURNS; i++) {
+        turnMessages = []; // Reset buffer for this turn
+
         // Agent Turn
         const start = performance.now();
-        let agentResponse = "";
+        
         try {
           // Filter history for Orchestrator (exclude init system msgs if any)
           const historyForAgent = transcript.map(m => ({ ...m })); 
-          agentResponse = await orchestrator.sendMessage(historyForAgent, currentInput);
+          // We await sendMessage, but we rely on onAgentResponse to populate turnMessages
+          await orchestrator.sendMessage(historyForAgent, currentInput);
         } catch (e) {
           console.error("Agent Error during Sim:", e);
-          agentResponse = "**Error**: System failed to respond.";
+          turnMessages.push({
+             id: Date.now().toString(),
+             role: 'assistant',
+             sender: agent.name,
+             content: "**Error**: System failed to respond.",
+             timestamp: Date.now()
+          });
           errorCount++;
         }
+        
         const end = performance.now();
         const latency = Math.round(end - start);
         latencies.push(latency);
 
-        transcript.push({
-          id: Date.now().toString(),
-          role: 'assistant',
-          sender: agent.name,
-          content: agentResponse,
-          timestamp: Date.now(),
-          latency: latency
-        });
+        // Assign latency to the last message in the turn (representing completion)
+        if (turnMessages.length > 0) {
+            turnMessages[turnMessages.length - 1].latency = latency;
+            transcript.push(...turnMessages);
+        } else if (errorCount === 0) {
+             // Edge case: Agent returned empty string (no onAgentResponse fired)
+             // This can happen if model output was blocked.
+             transcript.push({
+                 id: Date.now().toString(),
+                 role: 'assistant',
+                 sender: agent.name,
+                 content: "[No Response]",
+                 timestamp: Date.now(),
+                 latency: latency
+             });
+        }
+
+        // Construct full text response for the Simulator to react to
+        const fullAgentResponse = turnMessages.map(m => m.content).join('\n\n');
 
         // Stop if agent has effectively ended conversation or error
-        if (agentResponse.includes("**Error**")) break;
+        if (fullAgentResponse.includes("**Error**")) break;
 
         // Simulator Turn (React to agent)
         if (i < MAX_TURNS - 1) {
-            const simResponse = await this.retryOperation(() => simulator.sendMessage({ message: agentResponse }));
+            const simResponse = await this.retryOperation(() => simulator.sendMessage({ message: fullAgentResponse }));
             currentInput = simResponse.text || ".";
             
             transcript.push({
@@ -221,7 +265,8 @@ export class EvaluationService {
     errorCount: number,
     latencies: number[]
   ): Promise<EvaluationMetric[]> {
-    const conversationText = transcript.map(m => `${m.role.toUpperCase()} (${m.latency ? m.latency + 'ms' : ''}): ${m.content}`).join('\n');
+    // Compress content (remove base64 images) before sending to Judge to avoid token limits
+    const conversationText = transcript.map(m => `${m.role.toUpperCase()} (${m.latency ? m.latency + 'ms' : ''}): ${compressForJudge(m.content)}`).join('\n');
     const avgLatency = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
 
     const prompt = `

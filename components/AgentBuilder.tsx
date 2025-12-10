@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
@@ -378,8 +379,18 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
     setTestMessages([initMsg]);
     
-    // Create new Session
-    const newSessionId = Date.now().toString();
+    // Create new Session with Sequential ID (1, 2, 3...)
+    const sessions = rootAgent.sessions || [];
+    
+    // Filter out old timestamp-based IDs (typically > 1 trillion) to find the max sequential ID
+    // Heuristic: IDs smaller than 1 billion are treated as sequential counters.
+    const sequentialIds = sessions
+        .map(s => parseInt(s.id, 10))
+        .filter(id => !isNaN(id) && id < 1000000000); 
+    
+    const nextId = sequentialIds.length > 0 ? Math.max(...sequentialIds) + 1 : 1;
+    const newSessionId = nextId.toString();
+
     const newSession: AgentSession = {
         id: newSessionId,
         timestamp: new Date(),
