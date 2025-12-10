@@ -91,6 +91,7 @@ const App: React.FC = () => {
             <AgentRegistry 
                 agents={agents} 
                 onDeleteAgent={handleDeleteAgent} 
+                onUpdateAgent={handleAgentCreated}
             />
         )}
         {activeTab === 'aop' && (
