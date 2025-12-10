@@ -4,6 +4,14 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12-10-2025 - Cloud Run Deployment Support
+- **Added `Dockerfile`**:
+  - Implemented multi-stage build (Node.js -> Nginx) for optimized production images.
+- **Added `nginx.conf`**:
+  - Configured SPA routing (`try_files`) and Gzip compression.
+- **Updated `README.md`**:
+  - Added comprehensive deployment guide for Google Cloud Run.
+
 ### 12-10-2025 - Watchtower UI Update
 - **Updated `components/Watchtower.tsx`**:
   - Renamed the label in the Intent Card from "sessions" to "detections".

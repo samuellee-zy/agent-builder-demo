@@ -99,6 +99,13 @@ A centralized observability dashboard for analyzing agent performance in the wil
 
 ## 📂 File Structure & Responsibilities
 
+### Deployment Architecture
+The application uses a **Multi-Stage Docker Build** to optimize image size and security:
+1.  **Build Stage (`node:18-alpine`)**: Installs dependencies and compiles the React application (`npm run build`).
+2.  **Production Stage (`nginx:alpine`)**: Copies the compiled static assets (`dist/`) to the Nginx web root.
+    - **Nginx Configuration**: A custom `nginx.conf` handles Client-Side Routing (SPA) by redirecting all 404s to `index.html`.
+    - **Port**: Exposes port `8080` to comply with Cloud Run requirements.
+
 - **`types.ts`**: Source of Truth. Defines `Agent`, `Tool`, `ChatMessage`, `EvaluationReport`, `WatchtowerAnalysis`, etc.
 - **`App.tsx`**: Application Root. Manages routing, global agent state, and LocalStorage persistence.
 - **`components/AgentBuilder.tsx`**: Main workspace for creation and testing. Handles the "Build" and "Test" phases.
@@ -113,6 +120,8 @@ A centralized observability dashboard for analyzing agent performance in the wil
 - **`services/mockAgentService.ts`**: Architect backend (Chat & JSON Gen).
 - **`services/tools.ts`**: Registry of executable tools.
 - **`services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
+- **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Nginx Serve).
+- **`nginx.conf`**: Web server configuration for SPA routing and gzip compression.
 
 ---
 

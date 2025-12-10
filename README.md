@@ -98,3 +98,50 @@ Before you begin, ensure you have the following installed on your computer:
 5.  **Access the App**
     Once the server starts, open your web browser and navigate to the URL shown in the terminal, usually:
     `http://localhost:5173`
+
+---
+
+## ☁️ Deployment to Google Cloud Run
+
+This application is containerized using Docker and Nginx, making it ready for serverless deployment on Google Cloud Run.
+
+### Prerequisites
+1.  **Google Cloud SDK**: [Install gcloud CLI](https://cloud.google.com/sdk/docs/install).
+2.  **Docker**: Installed and running locally (optional, for local testing).
+
+### Deployment Steps
+
+1.  **Authenticate with Google Cloud**
+    ```bash
+    gcloud auth login
+    gcloud config set project YOUR_PROJECT_ID
+    ```
+
+2.  **Build and Deploy**
+    Run the following command to build the image using Cloud Build and deploy it to Cloud Run:
+    ```bash
+    gcloud run deploy agent-builder \
+      --source . \
+      --platform managed \
+      --region us-central1 \
+      --allow-unauthenticated \
+      --set-env-vars API_KEY=your_actual_api_key_here
+    ```
+    *Replace `your_actual_api_key_here` with your Gemini API Key.*
+
+3.  **Access the App**
+    Once deployed, Cloud Run will provide a URL (e.g., `https://agent-builder-xyz-uc.a.run.app`). Open this URL to use your application.
+
+### Local Docker Testing
+To test the container locally before deploying:
+
+1.  **Build the Image**
+    ```bash
+    docker build -t agent-builder .
+    ```
+
+2.  **Run the Container**
+    ```bash
+    docker run -p 8080:8080 agent-builder
+    ```
+    Access at `http://localhost:8080`.
