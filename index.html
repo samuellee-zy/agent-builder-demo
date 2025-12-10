@@ -30,7 +30,7 @@
     </script>
     <style>
       :root {
-        font-size: 18px; /* Adjusted base size to ~12.5% increase (Default is 16px) */
+        font-size: 18px; /* Adjusted base size */
       }
       body {
         background-color: #0f172a; /* slate-900 */
@@ -40,8 +40,8 @@
       }
       
       /* Accessibility Hack: Override Tailwind's fixed pixel classes to use rems so they scale with root */
-      .text-\[10px\] { font-size: 0.625rem !important; } /* 10px / 16px base = 0.625rem */
-      .text-\[9px\] { font-size: 0.5625rem !important; } /* 9px / 16px base = 0.5625rem */
+      .text-\[10px\] { font-size: 0.625rem !important; }
+      .text-\[9px\] { font-size: 0.5625rem !important; }
 
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -62,16 +62,19 @@
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
