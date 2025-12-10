@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
@@ -6,6 +5,7 @@ import { sendArchitectMessage, generateArchitectureFromChat } from '../services/
 import { AgentOrchestrator } from '../services/orchestrator';
 import { GoogleGenAI } from "@google/genai";
 import { AgentDiagram } from './AgentDiagram';
+import { VideoMessage } from './VideoMessage';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -29,90 +29,14 @@ import {
   MessageSquarePlus,
   Download,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Undo2
 } from 'lucide-react';
 
 interface AgentBuilderProps {
   onAgentCreated: (agent: Agent) => void;
   initialAgent?: Agent; // Support reloading an existing agent
 }
-
-// Inner component to handle secure video playback via Blob
-const VideoMessage: React.FC<{ src: string }> = ({ src }) => {
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        let active = true;
-        const loadVideo = async () => {
-            try {
-                // Fetch the video data using the authenticated URL (which includes the key)
-                const response = await fetch(src);
-                if (!response.ok) throw new Error('Failed to load video stream');
-                const blob = await response.blob();
-                
-                if (active) {
-                    const url = URL.createObjectURL(blob);
-                    setBlobUrl(url);
-                    setLoading(false);
-                }
-            } catch (e) {
-                if (active) {
-                    console.error("Video load error:", e);
-                    setError('Playback failed. Please download.');
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadVideo();
-
-        return () => {
-            active = false;
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
-        };
-    }, [src]);
-
-    if (loading) {
-        return (
-            <div className="mt-3 p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-2 text-xs text-slate-500">
-                <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></span>
-                <span>Buffering secure video stream...</span>
-            </div>
-        );
-    }
-
-    return (
-        <div className="mt-3 rounded-lg overflow-hidden border border-slate-700 bg-black shadow-lg">
-            <div className="flex items-center justify-between p-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
-                <div className="flex items-center gap-2">
-                    <Film size={12} className="text-brand-400" />
-                    <span>Generated Video (Veo)</span>
-                </div>
-                <a 
-                    href={src} 
-                    download="generated-video.mp4" 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="hover:text-white flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
-                >
-                    <Download size={10} /> Download
-                </a>
-            </div>
-            {blobUrl ? (
-                <video controls autoPlay loop className="w-full max-h-80 bg-black" src={blobUrl}>
-                    Your browser does not support the video tag.
-                </video>
-            ) : (
-                <div className="p-8 text-center text-xs text-red-400 bg-slate-950">
-                    <AlertCircle size={24} className="mx-auto mb-2 opacity-50" />
-                    {error}
-                </div>
-            )}
-        </div>
-    );
-};
 
 export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent }) => {
   const [step, setStep] = useState<BuildStep>('input');
@@ -131,6 +55,9 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const [enhancePrompt, setEnhancePrompt] = useState('');
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  
+  // Undo/History State
+  const [history, setHistory] = useState<Agent[]>([]);
 
   // Step 4: Testing & Billing State
   const [testMessages, setTestMessages] = useState<ChatMessage[]>([]);
@@ -149,6 +76,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       setRootAgent(initialAgent);
       setSelectedAgentId(initialAgent.id);
       setStep('review');
+      setHistory([]); // Reset history on load
     }
   }, [initialAgent]);
 
@@ -188,10 +116,34 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       return current;
   };
 
+  // --- History Management ---
+  const saveCheckpoint = () => {
+    if (rootAgent) {
+        setHistory(prev => [...prev, rootAgent]);
+    }
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const previous = history[history.length - 1];
+    const newHistory = history.slice(0, -1);
+    
+    setHistory(newHistory);
+    setRootAgent(previous);
+    onAgentCreated(previous); // Sync with storage
+
+    // If currently selected agent doesn't exist in previous state, select root
+    if (selectedAgentId && !findAgentById(selectedAgentId, previous)) {
+        setSelectedAgentId(previous.id);
+    }
+  };
+
   const handleDeleteNode = (nodeId: string) => {
       if (!rootAgent) return;
       if (nodeId === rootAgent.id) return; // Cannot delete root
       
+      saveCheckpoint(); // Save state before delete
+
       const newRoot = deleteNodeFromTree(nodeId, rootAgent);
       if (newRoot) {
           setRootAgent(newRoot);
@@ -320,6 +272,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         const result = await generateArchitectureFromChat(architectMessages);
         setRootAgent(result);
         setSelectedAgentId(result.id);
+        setHistory([]); // Reset history for new build
         onAgentCreated(result); // Persist immediately
         setStep('review');
     } catch (e) {
@@ -344,6 +297,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     };
     setRootAgent(defaultRoot);
     setSelectedAgentId(defaultRoot.id);
+    setHistory([]);
     onAgentCreated(defaultRoot);
     setStep('review');
   };
@@ -376,6 +330,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
   const handleAddSub = (parentId: string, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent') => {
     if (!rootAgent) return;
+    saveCheckpoint(); // Save state before add
     const newRoot = addSubNode(parentId, rootAgent, type, groupMode);
     setRootAgent(newRoot);
     onAgentCreated(newRoot);
@@ -485,13 +440,21 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
           setActiveToolLog(null);
         },
         onAgentResponse: (agentName, content) => {
-            setTestMessages(prev => [...prev, {
-                id: Date.now().toString() + Math.random(),
-                role: 'assistant',
-                sender: agentName,
-                content: content,
-                timestamp: Date.now()
-            }]);
+            // DEDUPLICATION: Check if the last message is identical to avoid "Echoing" effect
+            setTestMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg && lastMsg.content.trim() === content.trim()) {
+                    // console.debug(`Ignoring duplicate message from ${agentName}`);
+                    return prev;
+                }
+                return [...prev, {
+                    id: Date.now().toString() + Math.random(),
+                    role: 'assistant',
+                    sender: agentName,
+                    content: content,
+                    timestamp: Date.now()
+                }];
+            });
         }
       });
 
@@ -731,6 +694,14 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 >
                     Back to Chat
                 </button>
+                {history.length > 0 && (
+                    <button 
+                        onClick={handleUndo}
+                        className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white hover:bg-slate-700 flex items-center gap-1.5 transition-colors"
+                    >
+                        <Undo2 size={12} /> Revert Changes
+                    </button>
+                )}
              </div>
 
              <div className="flex-1 overflow-auto p-10 flex items-center justify-center min-w-full min-h-full">

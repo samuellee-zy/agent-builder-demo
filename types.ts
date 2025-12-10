@@ -19,6 +19,7 @@ export interface Agent {
 
   // Historical Data
   sessions?: AgentSession[];
+  evaluations?: EvaluationReport[];
 }
 
 export interface AgentSession {
@@ -33,6 +34,7 @@ export interface ChatMessage {
   sender?: string; // Name of the agent who sent this message
   content: string;
   timestamp: number;
+  latency?: number; // In milliseconds
   // For UI visualization of tool calls/thought process
   toolCalls?: { name: string; args: any; result?: any }[];
 }
@@ -48,6 +50,41 @@ export interface Tool {
   functionDeclaration: FunctionDeclaration; 
   // The actual JS implementation
   executable: (args: any) => Promise<any> | any;
+}
+
+// Evaluation Interfaces
+export interface EvaluationMetric {
+  name: 'Response Time' | 'Accuracy' | 'User Satisfaction' | 'System Stability';
+  score: number; // 1-10
+  reasoning: string;
+}
+
+export interface EvaluationSession {
+  id: string;
+  scenario: string;
+  transcript: ChatMessage[];
+  metrics: EvaluationMetric[];
+  stats: {
+    avgLatency: number;
+    errorRate: number; // Percentage 0-100
+  };
+}
+
+export interface EvaluationReport {
+  id: string;
+  timestamp: Date;
+  config: {
+    simulatorModel: string;
+    scenarioCount: number;
+  };
+  sessions: EvaluationSession[];
+  summary: {
+    avgScore: number;
+    avgResponseScore: number;
+    avgAccuracy: number;
+    avgSatisfaction: number;
+    avgStability: number;
+  };
 }
 
 export const AVAILABLE_MODELS = [

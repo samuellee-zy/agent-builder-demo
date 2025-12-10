@@ -1,5 +1,3 @@
-
-
 # Agent Builder
 
 **Agent Builder** is a production-grade web application for designing, building, and orchestrating Multi-Agent AI Systems. Built on the Google Gemini ecosystem, it empowers users to create sophisticated agent teams using natural language, visual diagrams, and a powerful client-side orchestration engine.
@@ -7,44 +5,41 @@
 ## 🚀 Key Features
 
 ### 🧠 Intelligent Design
-*   **Conversational Architect:** Describe your goal (e.g., "Create a marketing team that researches trends and generates video ads"), and the AI Architect will design the entire system for you.
-*   **Smart Patterns:** Automatically detects workflows and structures them into **Sequential** (step-by-step) or **Concurrent** (parallel) execution groups.
-*   **Robust Generation:** Uses a multi-model strategy (Gemini 3 Pro + Flash Fallback) to ensure valid architectures are always generated.
+*   **Conversational Architect:** Describe your goal, and the AI Architect will design the entire system.
+*   **Smart Patterns:** Automatically detects workflows (Sequential vs Concurrent).
+*   **Robust Generation:** Multi-model strategy for reliable architecture generation.
 
 ### 🎨 Visual Studio
-*   **Recursive Diagram Builder:** Visualize your agent hierarchy.
-*   **Sequential Order Indicators:** Automatically badges sequential agents (e.g., #1, #2) to clearly visualize execution flow.
-*   **Full Control:** Add sub-agents, create flow groups, and **delete nodes** directly from the canvas (including nested agents).
-*   **Inspector Panel:** Fine-tune every aspect of an agent: Name, Goal, Model, Tools, and Instructions (with AI Enhancement).
+*   **Recursive Diagram Builder:** Visualize hierarchy with Sequential/Concurrent layouts.
+*   **Sequential Order Indicators:** Badges sequential agents (e.g., #1, #2).
+*   **Full Control:** Add, edit, and **delete** nodes directly.
+*   **Undo / Revert Changes:** History stack to recover from accidental changes.
 
 ### ⚡ Advanced Orchestration
-*   **Client-Side Engine:** Runs entirely in your browser using the `@google/genai` SDK.
-*   **Coordinator Pattern:** Automatically handles task delegation from Root Agents to Sub-Agents.
-*   **Secure Video Playback:** Generated Veo videos are securely fetched and streamed via local Blobs, ensuring smooth playback without auth errors.
-*   **Resilience:** Built-in exponential backoff handles API overloads (503) gracefully.
+*   **Client-Side Engine:** Runs entirely in browser.
+*   **Coordinator Pattern:** Handles task delegation automatically.
+*   **Secure Video Playback:** Veo videos play securely via Blob URLs.
+*   **Resilience:** Built-in exponential backoff for API reliability.
+
+### 📊 Automated Evaluation (LLM-as-a-Judge)
+*   **Scenario Generation:** AI automatically invents realistic test scenarios based on agent goals.
+*   **User Simulation:** Runs fully automated conversations between a "User Simulator" and your Agent.
+*   **Performance Metrics:** 
+    *   **Response Time:** Visualized latency (ms) per chat bubble.
+    *   **Accuracy:** Factual correctness of responses.
+    *   **User Satisfaction:** Sentiment analysis of the interaction.
+    *   **Stability:** Error rates and API reliability.
+*   **Visual Reports:** Detailed dashboards with scorecards and transcript analysis.
 
 ### 💾 Registry & History
-*   **Persistent Storage:** All agents are saved locally.
-*   **Agent Management:** View, audit, and **permanently delete** agents from the registry.
-*   **Session Logging:** Every conversation is recorded.
-*   **History Replay:** Review past interactions in the Agent Registry with a clean, redacted view for heavy media.
-
-### 🛠 Tools & Models
-*   **Integrated Library:** 
-    *   **Customer Service:** CRM Lookup, Order Status, Knowledge Base, Ticket Creation.
-    *   **Utilities:** Google Search (Grounding), Calculator, System Time.
-*   **Inspector & Mock Tester:** 
-    *   View full source code for every tool.
-    *   **Interactive Playground:** Test tools with custom parameters and see live results directly in the UI.
-*   **Multimodal Support:**
-    *   **Text/Logic:** Gemini 2.5 Flash, Gemini 3 Pro.
-    *   **Video:** Veo 3.1, Veo 3.0 Fast.
-    *   **Image:** Imagen 4, Gemini 3 Pro Image.
+*   **Persistent Storage:** Save agents to LocalStorage.
+*   **Rich History Replay:** Review past sessions with full media rendering.
+*   **Evaluation Logs:** Access historical test reports and drill down into failure cases.
+*   **Tool Library:** Inspect code and test functions for over 8+ built-in tools.
 
 ## 💻 Tech Stack
 *   **Frontend:** React 19, TypeScript, Tailwind CSS
 *   **AI:** Google GenAI SDK (`@google/genai`)
-*   **Icons:** Lucide React
 
 ## 📖 Documentation
-For a deep dive into the code structure, file responsibilities, and architectural patterns, please refer to **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.
+For a deep dive into the code structure, file responsibilities, undo architecture, and orchestration patterns, please refer to **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.

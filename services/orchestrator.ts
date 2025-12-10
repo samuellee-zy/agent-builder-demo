@@ -1,7 +1,7 @@
 
-import { Agent, ChatMessage, Tool } from '../types';
+import { Agent, ChatMessage } from '../types';
 import { AVAILABLE_TOOLS_REGISTRY } from './tools';
-import { GoogleGenAI, FunctionDeclaration, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, FunctionDeclaration, Type, GenerateContentResponse, Tool as GenAITool, Content, Part } from "@google/genai";
 
 interface OrchestratorOptions {
   apiKey: string;
@@ -12,7 +12,6 @@ interface OrchestratorOptions {
 }
 
 const MODELS_SUPPORTING_SEARCH = ['gemini-2.5-flash', 'gemini-3-pro-preview', 'gemini-3-pro-image-preview'];
-const MODELS_SUPPORTING_FUNCTIONS = ['gemini-2.5-flash', 'gemini-3-pro-preview'];
 const PAID_MODELS = ['veo', 'imagen', 'gemini-3-pro-image-preview'];
 
 /**
@@ -58,7 +57,7 @@ export class AgentOrchestrator {
    * Generic Retry Wrapper for any async operation with Exponential Backoff.
    * Handles 503 (Overloaded) and 429 (Rate Limit) specifically.
    */
-  private async retryOperation<T>(operation: () => Promise<T>, retries = 5, initialDelay = 2000): Promise<T> {
+  private async retryOperation<T>(operation: () => Promise<T>, retries = 6, initialDelay = 2000): Promise<T> {
     let delay = initialDelay;
     for (let i = 0; i < retries; i++) {
       try {
@@ -66,266 +65,246 @@ export class AgentOrchestrator {
       } catch (error: any) {
         if (i === retries - 1) throw error; // Re-throw on last attempt
         
-        // Detect transient errors
-        const isTransient = error.status === 503 || error.status === 429 || error.message?.includes('overloaded');
+        // Normalize status code check
+        const status = error.status || error.code;
+        const errorMessage = error.message || '';
         
-        if (isTransient) {
-            console.warn(`API Busy/Overloaded (${error.status || '503'}). Retrying in ${delay}ms...`);
+        // 429: Resource Exhausted / Rate Limit
+        // 503: Service Unavailable
+        // 400: Invalid Argument (Don't retry if it's a known conflict, but general 400s shouldn't happen with our conflict fix)
+        const isRateLimit = status === 429 || status === 'RESOURCE_EXHAUSTED' || errorMessage.includes('quota');
+        const isTransient = status === 503 || errorMessage.includes('overloaded');
+        
+        if (isRateLimit) {
+            // Check for explicit "retry in X s" message
+            const match = errorMessage.match(/retry in ([0-9.]+)s/);
+            let waitTime = 6000; // Default minimum
+            
+            if (match && match[1]) {
+                const seconds = parseFloat(match[1]);
+                waitTime = Math.ceil(seconds * 1000) + 1000; // Wait requested time + 1s buffer
+                console.warn(`API Rate Limit (429). Server requested wait: ${seconds}s. Sleeping for ${waitTime}ms.`);
+            } else {
+                waitTime = Math.max(delay, 6000);
+                console.warn(`API Rate Limit (429). Retrying in ${waitTime}ms...`);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            // Do not double delay for rate limits, just stick to safe wait times
+        } else if (isTransient) {
+            console.warn(`API Busy (${status}). Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff for transient errors
         } else {
-            console.warn(`Operation failed. Retrying in ${delay}ms...`, error);
+            // Unknown error, maybe just a blip, retry once or twice then fail
+            if (i > 2) throw error;
+            console.warn(`API Error (${errorMessage}). Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
         }
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
       }
     }
-    throw new Error("Operation failed after max retries");
+    throw new Error("Operation failed after retries.");
   }
 
   /**
-   * Runs the execution loop for a specific agent.
-   * Handles Tool Calls, Recursion, and Special Model Types (Veo, Imagen).
+   * The core Recursive Execution Loop.
+   * - Constructs prompts.
+   * - Injects tools.
+   * - Handles Function Calling loop.
+   * - Handles Delegation recursion.
    */
-  private async runAgentLoop(
-    agent: Agent, 
-    history: ChatMessage[], 
-    userMessage: string
-  ): Promise<string> {
+  private async runAgentLoop(agent: Agent, history: ChatMessage[], input: string): Promise<string> {
+    // 1. Build System Instruction
+    let systemInstruction = `You are ${agent.name}.\nGOAL: ${agent.goal}\n\n${agent.instructions || ''}`;
     
-    // Safety check for Group nodes which might lack a model property
-    const modelId = agent.model || 'gemini-2.5-flash';
-
-    // --- CASE 1: VIDEO GENERATION (VEO) ---
-    if (modelId.startsWith('veo')) {
-        this.onToolStart?.(agent.name, 'generateVideos', { prompt: userMessage });
-        try {
-            // Safe check for key append logic helper
-            const appendKey = (uri: string) => {
-                 if (!uri) return '';
-                 // Ensure we don't double append if somehow the URI already has the key (e.g. from a previous retry, though unlikely here)
-                 if (uri.includes('key=')) return uri;
-                 return `${uri}${uri.includes('?') ? '&' : '?'}key=${this.apiKey}`;
-            };
-
-            // Wrap generation in retry logic
-            let operation = await this.retryOperation(() => this.ai.models.generateVideos({
-                model: modelId,
-                prompt: userMessage,
-                config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
-            }));
-
-            // Polling Loop
-            let attempts = 0;
-            const MAX_ATTEMPTS = 30; // 5 mins roughly
-            while (!operation.done && attempts < MAX_ATTEMPTS) {
-                await new Promise(resolve => setTimeout(resolve, 10000)); // 10s interval
-                operation = await this.retryOperation(() => this.ai.operations.getVideosOperation({ operation: operation }));
-                attempts++;
-            }
-            
-            if (!operation.done) throw new Error("Video generation timed out.");
-
-            const rawVideoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
-            if (!rawVideoUri) throw new Error("No video URI returned.");
-
-            this.onToolEnd?.(agent.name, 'generateVideos', 'Success');
-            
-            // Return Markdown to render video (Appended API Key for client-side playback)
-            const finalUri = appendKey(rawVideoUri);
-            const videoMarkdown = `\n\n### Generated Video\n[Download Video](${finalUri})`;
-            this.onAgentResponse?.(agent.name, videoMarkdown);
-            return videoMarkdown;
-
-        } catch (e: any) {
-            this.onToolEnd?.(agent.name, 'generateVideos', 'Failed');
-            const errorMsg = `Error generating video: ${e.message}`;
-            this.onAgentResponse?.(agent.name, errorMsg);
-            return errorMsg;
-        }
-    }
-
-    // --- CASE 2: IMAGE GENERATION (IMAGEN) ---
-    if (modelId.startsWith('imagen')) {
-        this.onToolStart?.(agent.name, 'generateImages', { prompt: userMessage });
-        try {
-            // Wrap in retry logic
-            const response = await this.retryOperation(() => this.ai.models.generateImages({
-                model: modelId,
-                prompt: userMessage,
-                config: { numberOfImages: 1, aspectRatio: '1:1', outputMimeType: 'image/jpeg' }
-            }));
-            
-            const b64 = response.generatedImages?.[0]?.image?.imageBytes;
-            if (!b64) throw new Error("No image bytes returned.");
-            
-            this.onToolEnd?.(agent.name, 'generateImages', 'Success');
-            const imageMarkdown = `\n\n![Generated Image](data:image/jpeg;base64,${b64})`;
-            this.onAgentResponse?.(agent.name, imageMarkdown);
-            return imageMarkdown;
-
-        } catch (e: any) {
-            this.onToolEnd?.(agent.name, 'generateImages', 'Failed');
-            const errorMsg = `Error generating image: ${e.message}`;
-            this.onAgentResponse?.(agent.name, errorMsg);
-            return errorMsg;
-        }
-    }
-
-    // --- CASE 3: CHAT / COORDINATION (GEMINI) ---
+    // 2. Prepare Tools
+    const tools: GenAITool[] = [];
+    const functionDeclarations: FunctionDeclaration[] = [];
+    let requestGoogleSearch = false;
     
-    // 1. Prepare Tools
-    const agentToolIds = agent.tools || [];
-    const useGoogleSearch = agentToolIds.includes('google_search');
-
-    const agentTools = agentToolIds
-      .filter(id => id !== 'google_search')
-      .map(id => AVAILABLE_TOOLS_REGISTRY[id])
-      .filter(Boolean);
-
-    // Inject 'delegate_to_agent' for sub-agents
-    const subAgents = agent.subAgents || [];
-    const hasSubAgents = subAgents.length > 0;
-    
-    let delegationTool: Tool | null = null;
-    if (hasSubAgents) {
-      delegationTool = {
-        id: 'delegate_to_agent',
-        name: 'Delegate Task',
-        description: 'Delegates a specific task to a sub-agent.',
-        category: 'System',
-        functionDeclaration: {
-          name: 'delegate_to_agent',
-          description: `Delegate a task to one of the following agents: ${subAgents.map(sa => `${sa.name} (Goal: ${sa.goal})`).join(', ')}.`,
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              agentName: { type: Type.STRING, description: 'The exact name of the agent to delegate to.', enum: subAgents.map(sa => sa.name) },
-              instructions: { type: Type.STRING, description: 'Specific instructions for the sub-agent.' }
-            },
-            required: ['agentName', 'instructions']
-          }
-        },
-        executable: async ({ agentName, instructions }: { agentName: string, instructions: string }) => {
-          const targetAgent = subAgents.find(sa => sa.name === agentName);
-          if (!targetAgent) return `Error: Agent '${agentName}' not found.`;
-          // Recursive Call
-          return await this.runAgentLoop(targetAgent, [], instructions);
-        }
-      };
-    }
-
-    const allExecutableTools = [...agentTools];
-    if (delegationTool) allExecutableTools.push(delegationTool);
-
-    // Validation
-    if (useGoogleSearch && !MODELS_SUPPORTING_SEARCH.includes(modelId)) {
-        return `Error: 'Google Search' requires a supported model. Current: ${modelId}`;
-    }
-
-    // Config construction
-    const toolsConfig: any[] = [];
-    const supportsFunctions = MODELS_SUPPORTING_FUNCTIONS.includes(modelId);
-
-    // Check if we have active function declarations
-    const hasFunctions = allExecutableTools.length > 0 && supportsFunctions;
-
-    // ONLY add function declarations if the model supports them.
-    if (hasFunctions) {
-      toolsConfig.push({ functionDeclarations: allExecutableTools.map(t => t.functionDeclaration) });
-    }
-    
-    if (useGoogleSearch) {
-      // PREVENT ERROR: Cannot mix Function Calling and Google Search on most models.
-      // Prioritize Functions (Delegation) over Search to prevent Orchestration breakdown.
-      if (hasFunctions) {
-          console.warn(`[Orchestrator] Model ${modelId} cannot mix Functions and Google Search. Disabling Search for this turn to allow delegation.`);
-          // We intentionally omit googleSearch here
-      } else {
-          toolsConfig.push({ googleSearch: {} });
-      }
-    }
-
-    let systemInstruction = agent.instructions;
-    if (hasSubAgents) {
-      systemInstruction += `\n\n### COORDINATION PROTOCOL
-You are a Coordinator. Available Sub-Agents via 'delegate_to_agent':
-${subAgents.map(sa => `- **${sa.name}**: ${sa.goal}`).join('\n')}`;
-    }
-
-    const chatHistory = history.map(h => ({
-      role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.content }]
-    }));
-
-    const chat = this.ai.chats.create({
-      model: modelId,
-      config: { systemInstruction, tools: toolsConfig.length > 0 ? toolsConfig : undefined },
-      history: chatHistory
-    });
-
-    let currentMessage: any = userMessage;
-    let finalResponse = '';
-    let turns = 0;
-    const MAX_TURNS = 10;
-
-    while (turns < MAX_TURNS) {
-      turns++;
-      
-      // Use retry wrapper for sendMessage
-      const result: GenerateContentResponse = await this.retryOperation(() => 
-          chat.sendMessage({ message: currentMessage })
-      );
-      
-      const calls = result.functionCalls;
-      
-      if (calls && calls.length > 0) {
-        const functionResponseParts = [];
-        for (const call of calls) {
-          this.onToolStart?.(agent.name, call.name, call.args);
-          let output;
-          if (delegationTool && call.name === delegationTool.functionDeclaration.name) {
-             output = await delegationTool.executable(call.args);
-          } else {
-             const tool = agentTools.find(t => t.functionDeclaration.name === call.name);
-             output = tool ? await tool.executable(call.args) : `Error: Tool ${call.name} not found.`;
-          }
-          this.onToolEnd?.(agent.name, call.name, output);
-          functionResponseParts.push({
-            functionResponse: { name: call.name, response: { result: output }, id: call.id }
-          });
-        }
-        currentMessage = functionResponseParts;
-      } else {
-        // Text Response
-        finalResponse = result.text || '';
-
-        // Handle Inline Images (e.g. from Gemini 3 Image Pro)
-        const parts = result.candidates?.[0]?.content?.parts;
-        if (parts) {
-            for (const part of parts) {
-                if (part.inlineData) {
-                    finalResponse += `\n\n![Generated Image](data:${part.inlineData.mimeType};base64,${part.inlineData.data})`;
+    // Map assigned tools
+    if (agent.tools) {
+        agent.tools.forEach(toolId => {
+            const toolDef = AVAILABLE_TOOLS_REGISTRY[toolId];
+            if (toolDef) {
+                // Special handling for Native Google Search
+                if (toolId === 'google_search') {
+                   // Only add if model supports it
+                   if (MODELS_SUPPORTING_SEARCH.includes(agent.model)) {
+                       requestGoogleSearch = true;
+                   }
+                } else {
+                    functionDeclarations.push(toolDef.functionDeclaration);
                 }
             }
-        }
-
-        // Handle Search Grounding
-        const groundingChunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        if (groundingChunks && groundingChunks.length > 0) {
-            const sources = groundingChunks
-                .map((chunk: any) => chunk.web ? `[${chunk.web.title}](${chunk.web.uri})` : null)
-                .filter(Boolean);
-            if (sources.length > 0) {
-                const uniqueSources = Array.from(new Set(sources));
-                finalResponse += `\n\n**Sources:**\n${uniqueSources.map(s => `- ${s}`).join('\n')}`;
-            }
-        }
-        
-        // Emit the final response for this agent's turn
-        this.onAgentResponse?.(agent.name, finalResponse);
-        break;
-      }
+        });
     }
+
+    // 3. Coordinator Logic: Inject Delegation Tool if sub-agents exist
+    if (agent.subAgents && agent.subAgents.length > 0) {
+        systemInstruction += `\n\n### COORDINATION PROTOCOL
+You are a Coordinator. You have access to the following Sub-Agents:
+${agent.subAgents.map(sub => `- "${sub.name}": ${sub.description}`).join('\n')}
+
+RULES:
+1. To delegate work, YOU MUST use the 'delegate_to_agent' tool.
+2. DO NOT hallucinate responses for sub-agents.
+3. When a sub-agent returns a result, summarize it briefly or pass it along. 
+4. **DO NOT** repeat the sub-agent's output verbatim if it is long. Synthesize it.
+`;
+        
+        // Add delegation tool
+        functionDeclarations.push({
+            name: 'delegate_to_agent',
+            description: 'Delegates a specific task/query to a sub-agent.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    agentName: { type: Type.STRING, description: 'The exact name of the sub-agent to call.' },
+                    task: { type: Type.STRING, description: 'The specific instructions or query for the sub-agent.' }
+                },
+                required: ['agentName', 'task']
+            }
+        });
+    }
+
+    // CONFLICT RESOLUTION: Google Search vs Function Calling
+    // The Gemini API currently returns 400 if `googleSearch` is used alongside `functionDeclarations`.
+    // We prioritize Function Calling (for tools/delegation) over Native Search to prevent system crashes.
+    if (functionDeclarations.length > 0) {
+        tools.push({ functionDeclarations });
+        
+        if (requestGoogleSearch) {
+             console.warn(`[Orchestrator] Conflict in agent '${agent.name}': Native Google Search disabled because other tools (Function Calling) are present.`);
+             // We do NOT add googleSearch here to avoid the 400 error.
+        }
+    } else if (requestGoogleSearch) {
+        // Only use search if no other functions are present
+        tools.push({ googleSearch: {} });
+    }
+
+    // 4. Construct Chat History (Deep copy and format)
+    const chatHistory: Content[] = history
+        .filter(h => h.id !== 'init') // Remove system init marker if present in UI logs
+        .map(h => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.content }]
+        }));
+
+    // Add the current input
+    chatHistory.push({ role: 'user', parts: [{ text: input }] });
+
+    // 5. Execution Loop (Model -> Tool -> Model)
+    let keepGoing = true;
+    let finalResponse = "";
+    let turns = 0;
+    const MAX_TURNS = 10; // Prevent infinite loops
+
+    // We keep track of the conversation *for this run* in `currentContents`.
+    const currentContents: Content[] = [...chatHistory];
+
+    while (keepGoing && turns < MAX_TURNS) {
+        turns++;
+
+        try {
+            // A. Call Model
+            const result: GenerateContentResponse = await this.retryOperation(() => this.ai.models.generateContent({
+                model: agent.model || 'gemini-2.5-flash',
+                contents: currentContents,
+                config: {
+                    systemInstruction,
+                    tools: tools.length > 0 ? tools : undefined,
+                    temperature: 0.7,
+                }
+            }));
+
+            const responseContent = result.candidates?.[0]?.content;
+            if (!responseContent) throw new Error("No content in response");
+
+            // B. Check for Function Calls
+            const functionCalls = responseContent.parts?.filter(p => p.functionCall).map(p => p.functionCall);
+            
+            // Append model's turn to history so it knows what it asked
+            if (responseContent.parts) {
+                currentContents.push({ role: 'model', parts: responseContent.parts });
+            }
+
+            if (functionCalls && functionCalls.length > 0) {
+                const functionResponses: Part[] = [];
+
+                for (const call of functionCalls) {
+                    if (!call) continue;
+                    
+                    const { name, args: rawArgs } = call;
+                    const args = (rawArgs || {}) as Record<string, any>;
+                    
+                    // UI Hook
+                    if (this.onToolStart) this.onToolStart(agent.name, name, args);
+
+                    let functionResult;
+
+                    // Handle Delegation
+                    if (name === 'delegate_to_agent') {
+                        const subAgentName = args['agentName'] as string;
+                        const task = args['task'] as string;
+                        const subAgent = agent.subAgents?.find(sa => sa.name === subAgentName);
+
+                        if (subAgent) {
+                            // RECURSION: Call the sub-agent
+                            functionResult = await this.runAgentLoop(subAgent, [], task);
+                        } else {
+                            functionResult = `Error: Agent '${subAgentName}' not found. Available: ${agent.subAgents?.map(s => s.name).join(', ')}`;
+                        }
+                    } 
+                    // Handle Standard Tools
+                    else {
+                        const toolDef = AVAILABLE_TOOLS_REGISTRY[Object.keys(AVAILABLE_TOOLS_REGISTRY).find(k => AVAILABLE_TOOLS_REGISTRY[k].functionDeclaration.name === name) || ''];
+                        
+                        if (toolDef) {
+                            functionResult = await toolDef.executable(args);
+                        } else {
+                            functionResult = `Error: Tool '${name}' not implemented.`;
+                        }
+                    }
+
+                    // UI Hook
+                    if (this.onToolEnd) this.onToolEnd(agent.name, name, functionResult);
+
+                    functionResponses.push({
+                        functionResponse: {
+                            name: name,
+                            response: { result: functionResult }
+                        }
+                    });
+                }
+
+                // Send results back to model
+                currentContents.push({ role: 'user', parts: functionResponses });
+                
+            } else {
+                // No function calls, we have a text response
+                const text = responseContent.parts?.map(p => p.text).join('') || '';
+                
+                // If there's text, we are done
+                if (text) {
+                    finalResponse = text;
+                    keepGoing = false;
+                    // UI Hook for streaming/final update could go here
+                    if (this.onAgentResponse) this.onAgentResponse(agent.name, finalResponse);
+                } else {
+                    // Sometimes models return empty text with just thought, but usually strict JSON handling avoids this.
+                    // If empty, force stop.
+                    keepGoing = false;
+                }
+            }
+
+        } catch (error) {
+            console.error(`Error in agent ${agent.name} loop:`, error);
+            return `[System Error in ${agent.name}]: ${error instanceof Error ? error.message : String(error)}`;
+        }
+    }
+
     return finalResponse;
   }
 }

@@ -25,22 +25,44 @@ const hydrate = (node: any): Agent => ({
   subAgents: node.subAgents ? node.subAgents.map(hydrate) : []
 });
 
-// Retry Wrapper for Generation
-const retryOperation = async <T>(operation: () => Promise<T>, retries = 4, initialDelay = 2000): Promise<T> => {
+// Retry Wrapper for Generation with Smart Backoff
+const retryOperation = async <T>(operation: () => Promise<T>, retries = 6, initialDelay = 2000): Promise<T> => {
     let delay = initialDelay;
     for (let i = 0; i < retries; i++) {
         try {
             return await operation();
         } catch (error: any) {
             if (i === retries - 1) throw error;
-            const isTransient = error.status === 503 || error.status === 429 || error.message?.includes('overloaded');
-            if (isTransient) {
-                console.warn(`Architect Service Busy (${error.status}). Retrying in ${delay}ms...`);
+            
+            const status = error.status || error.code;
+            const errorMessage = error.message || '';
+            const isRateLimit = status === 429 || status === 'RESOURCE_EXHAUSTED' || errorMessage.includes('quota');
+            const isTransient = status === 503 || errorMessage.includes('overloaded');
+
+            if (isRateLimit) {
+                const match = errorMessage.match(/retry in ([0-9.]+)s/);
+                let waitTime = 6000;
+                
+                if (match && match[1]) {
+                    const seconds = parseFloat(match[1]);
+                    waitTime = Math.ceil(seconds * 1000) + 1000;
+                    console.warn(`Architect Rate Limit (429). Waiting ${seconds}s as requested.`);
+                } else {
+                    waitTime = Math.max(delay, 6000);
+                    console.warn(`Architect Rate Limit (429). Retrying in ${waitTime}ms...`);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                delay = waitTime * 2;
+            } else if (isTransient) {
+                console.warn(`Architect Busy (${status}). Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
             } else {
                 console.warn(`Architect Error. Retrying in ${delay}ms...`, error);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
             }
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
         }
     }
     throw new Error("Architect service failed after retries.");
@@ -68,11 +90,12 @@ GUIDELINES:
      - *Concurrent* (Parallel execution).
 4. Always assume a "Coordinator Pattern" where a Root Agent manages sub-agents.
 5. Keep responses concise and helpful. Do not output JSON yet. Just converse.
+6. **Images**: Recommend 'gemini-2.5-flash-image' for general image tasks.
 
 AVAILABLE MODELS:
 - Gemini 2.5 Flash: Good for general tasks, speed.
 - Gemini 3 Pro: Best for reasoning, coding, complex instruction following.
-- Gemini 2.5 Flash Image: General image generation/editing.
+- Gemini 2.5 Flash Image: General image generation and editing.
 - Veo 3.1: For video generation.
 - Veo 3.0 Fast: For legacy fast video generation.
 - Imagen 4: For photorealistic image generation.
@@ -126,25 +149,29 @@ AVAILABLE MODELS:
 - 'imagen-4.0-generate-001' (Image Generation)
 
 INSTRUCTIONS:
-1. **Root Agent Required**: You MUST create a top-level 'Root Agent' that acts as the Coordinator.
-2. **Architecture**: 
-   - Analyze the workflow implied by the user.
-   - **Sequential**: If tasks must happen in a specific order (e.g. Research -> then Write -> then Review), you MUST wrap these agents in a sub-node with "type": "group" and "groupMode": "sequential".
-   - **Concurrent**: If tasks can happen at the same time (e.g. Search Twitter AND Search Google), wrap them in a sub-node with "type": "group" and "groupMode": "concurrent".
+1. **Root Agent**: You MUST create a top-level 'Root Agent'.
+2. **Tools & Coordinator Constraints (CRITICAL)**: 
+   - **Multi-Agent System**: If the Root Agent has 'subAgents', the Root Agent MUST be a **Pure Coordinator**.
+     - The Root Agent's "tools" array MUST be empty [].
+     - Its only job is to delegate. It DOES NOT execute searches or calculations itself.
+     - Assign tools (like 'google_search', 'calculator') ONLY to the appropriate Sub-Agents.
+   - **Single Agent System**: If there are NO 'subAgents', you may assign tools like 'google_search' directly to the Root Agent.
+3. **Architecture**: 
+   - **Sequential**: If tasks must happen in a specific order, wrap agents in a sub-node with "type": "group" and "groupMode": "sequential".
+   - **Concurrent**: If tasks can happen at the same time, wrap them in a sub-node with "type": "group" and "groupMode": "concurrent".
    - **Managed**: If the Root agent just needs to delegate to various experts ad-hoc, put them as direct sub-agents of the root.
-   - **Hierarchy**: Nest groups correctly. For example, a "Root" can contain a "Sequential Group", which contains "Agent A" and "Agent B".
-3. **Tools**: Assign relevant tool IDs. 
+4. **Tools Selection**: 
    - Use 'crm_customer_lookup' for identifying users.
    - Use 'check_order_status' for tracking.
    - Use 'kb_search' for answering policy questions.
    - Use 'create_support_ticket' for escalations.
    - Use 'google_search' for external information.
-4. **Models**: Assign the correct model ID based on the task. 
+5. **Models**: Assign the correct model ID based on the task. 
    - Use 'veo-3.1-fast-generate-preview' OR 'veo-3.0-fast-generate' ONLY for agents specifically tasked with creating videos.
    - Use 'imagen-4.0-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
    - Use 'gemini-2.5-flash-image' for general image editing or creation tasks.
    - Use 'gemini-3-pro-preview' for complex reasoning or coding.
-5. **Operating Procedures**: Generate detailed markdown 'instructions' for each agent.
+6. **Operating Procedures**: Generate detailed markdown 'instructions' for each agent.
 
 OUTPUT FORMAT (JSON ONLY):
 {
@@ -153,7 +180,7 @@ OUTPUT FORMAT (JSON ONLY):
   "description": "...",
   "goal": "...",
   "instructions": "Detailed Markdown instructions...",
-  "tools": ["google_search", "calculator"], 
+  "tools": [], 
   "model": "gemini-2.5-flash", 
   "type": "agent",
   "subAgents": [ 
@@ -162,7 +189,15 @@ OUTPUT FORMAT (JSON ONLY):
         "type": "group",
         "groupMode": "sequential", 
         "name": "Research Phase",
-        "subAgents": [ ...agents in order... ]
+        "subAgents": [ 
+            {
+               "id": "researcher",
+               "name": "Researcher",
+               "tools": ["google_search"],
+               "type": "agent",
+               ...
+            }
+        ]
      }
   ]
 }
