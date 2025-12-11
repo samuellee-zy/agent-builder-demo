@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { generateContent } from './api';
 import { Agent, AgentSession, WatchtowerAnalysis } from "../types";
 
 const cleanJson = (text: string): string => {
@@ -24,10 +24,10 @@ const compressTranscript = (messages: any[]): string => {
 };
 
 export class WatchtowerService {
-  private ai: GoogleGenAI;
+  // private ai: GoogleGenAI; // Removed as per instruction
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // this.ai = new GoogleGenAI({ apiKey: getApiKey() }); // Removed as per instruction
   }
 
   async runAnalysis(agent: Agent): Promise<WatchtowerAnalysis> {
@@ -100,15 +100,17 @@ ${sessionData}
 `;
 
     try {
-        const result = await this.ai.models.generateContent({
+      const result = await generateContent({
             model: 'gemini-3-pro-preview',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
+        prompt: prompt,
+        responseMimeType: 'application/json'
         });
 
-        if (!result.text) throw new Error("No response from Watchtower AI.");
+      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error("No response from Watchtower AI.");
+      }
 
-        const cleaned = cleanJson(result.text);
+      const cleaned = cleanJson(result.candidates[0].content.parts[0].text);
         const data = JSON.parse(cleaned);
 
         return {

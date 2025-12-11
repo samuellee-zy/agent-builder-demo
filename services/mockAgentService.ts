@@ -1,8 +1,6 @@
-
-
 import { Agent, ChatMessage } from '../types';
 import { AVAILABLE_TOOLS_LIST } from './tools';
-import { GoogleGenAI } from "@google/genai";
+import { generateContent } from './api';
 
 // Helper to strip markdown code blocks and find JSON object
 const cleanJson = (text: string): string => {
@@ -73,7 +71,7 @@ export const sendArchitectMessage = async (
   newMessage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // const ai = new GoogleGenAI({ apiKey: getApiKey() }); // Removed GoogleGenAI instance
     
     const systemInstruction = `You are an expert AI Systems Architect. 
 Your goal is to help the user design a multi-agent system.
@@ -110,15 +108,14 @@ ${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).j
       parts: [{ text: h.content }]
     }));
 
-    const chat = ai.chats.create({
+    // Replaced ai.chats.create and chat.sendMessage with direct generateContent call
+    const result = await retryOperation(() => generateContent({
       model: 'gemini-2.5-flash', 
-      config: { systemInstruction },
+      prompt: newMessage,
+      systemInstruction: systemInstruction,
       history: chatHistory
-    });
-
-    // Use retry wrapper
-    const result = await retryOperation(() => chat.sendMessage({ message: newMessage }));
-    return result.text || "I'm having trouble thinking right now.";
+    }));
+    return result.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having trouble thinking right now.";
   } catch (error) {
     console.error("Architect Chat Error:", error);
     return "I'm sorry, I'm having trouble connecting to the design server. Please try again.";
@@ -128,7 +125,7 @@ ${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).j
 export const generateArchitectureFromChat = async (
   history: ChatMessage[]
 ): Promise<Agent> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // const ai = new GoogleGenAI({ apiKey: getApiKey() }); // Removed GoogleGenAI instance
   const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
   const prompt = `
@@ -146,7 +143,7 @@ AVAILABLE MODELS:
 - 'gemini-3-pro-preview' (Complex Text/Reasoning)
 - 'gemini-2.5-flash-image' (General Image Generation/Editing)
 - 'gemini-3-pro-image-preview' (High-Quality Image Understanding/Generation)
-- 'veo-3.1-fast-generate-preview' (Video Generation)
+- 'veo-3.1-fast-generate-001' (Video Generation)
 - 'imagen-4.0-generate-001' (Image Generation)
 - 'imagen-4.0-fast-generate-001' (Fast Image Generation)
 
@@ -169,12 +166,44 @@ INSTRUCTIONS:
    - Use 'create_support_ticket' for escalations.
    - Use 'google_search' for external information.
 5. **Models**: Assign the correct model ID based on the task. 
-   - Use 'veo-3.1-fast-generate-preview' ONLY for agents specifically tasked with creating videos.
+   - Use 'veo-3.1-fast-generate-001' ONLY for agents specifically tasked with creating videos.
    - Use 'imagen-4.0-generate-001' OR 'imagen-4.0-fast-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
    - Use 'gemini-2.5-flash-image' for general image editing or creation tasks.
    - Use 'gemini-3-pro-preview' for complex reasoning or coding.
    - Use 'gemini-flash-lite-latest' for simple, high-volume text tasks.
-6. **Operating Procedures**: Generate detailed markdown 'instructions' for each agent.
+6. **Operating Procedures (CRITICAL)**: You MUST generate detailed markdown 'instructions' for each agent following this EXACT format:
+
+      # Role and Persona
+      You are **[Agent Name]**, a [Role Description].
+      * **Tone:** [Professional/Empathetic/Technical/etc.]
+      * **Goal:** [Specific Goal]
+
+      # Operational Context
+      [Describe access, constraints, and environment]
+
+      # Response Guidelines
+      ## 1. Interaction Style
+      * **Acknowledge and Validate:** [Instructions]
+      * **Clarity:** [Instructions]
+      * **Brevity:** [Instructions]
+
+      ## 2. Troubleshooting Protocol (If applicable)
+      1. **Clarify:** ...
+      2. **Isolate:** ...
+      3. **Solve:** ...
+
+      ## 3. Formatting Rules
+      * Use **bold** for UI elements.
+      * Use 'code blocks' for technical terms.
+      * Use > blockquotes for warnings.
+
+      # Guardrails and Safety
+      * **No PII:** [Instructions]
+      * **Competitors:** [Instructions]
+      * **Escalation:** [Instructions]
+
+      # Fallback Mechanism
+      [Instructions]
 
 OUTPUT FORMAT (JSON ONLY):
 {
@@ -208,14 +237,20 @@ OUTPUT FORMAT (JSON ONLY):
 
   try {
     // Attempt 1: Gemini 3 Pro (Reasoning) with Retry
-    const result = await retryOperation(() => ai.models.generateContent({
+    const result = await retryOperation(() => generateContent({
       model: 'gemini-3-pro-preview',
-      contents: prompt,
+      prompt: prompt,
     }));
 
-    if (result.text) {
+    // Helper to extract text from Vertex response
+    const getText = (response: any) => {
+      return response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    };
+
+    const text = getText(result);
+    if (text) {
         try {
-            const cleaned = cleanJson(result.text);
+          const cleaned = cleanJson(text);
             const parsed = JSON.parse(cleaned);
             return hydrate(parsed);
         } catch (e) {
@@ -225,14 +260,16 @@ OUTPUT FORMAT (JSON ONLY):
     
     // Attempt 2: Fallback to Flash (Reliable JSON) with Retry
     console.log("Falling back to Gemini 2.5 Flash for JSON generation...");
-    const fallbackResult = await retryOperation(() => ai.models.generateContent({
+    const fallbackResult = await retryOperation(() => generateContent({
         model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
+      prompt: prompt,
+      stream: false // explicit
     }));
 
-    if (fallbackResult.text) {
-        const parsed = JSON.parse(fallbackResult.text);
+    const fallbackText = getText(fallbackResult);
+    if (fallbackText) {
+      const cleaned = cleanJson(fallbackText);
+      const parsed = JSON.parse(cleaned);
         return hydrate(parsed);
     }
     

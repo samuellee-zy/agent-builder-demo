@@ -4,6 +4,21 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12-11-2025 - Veo 3.1 & Image-to-Video Support
+- **Veo 3.1 Implementation**:
+  - Upgraded video generation to use **Veo 3.1** via Vertex AI's `predictLongRunning` LRO pattern.
+  - Implemented robust **polling logic** (`fetchPredictOperation`) with exponential backoff.
+  - Added **Recursive Response Parsing** to reliably extract video data from deeply nested or variable JSON responses.
+  - Fixed output format to use Markdown `[Download Video](data:...)` for seamless frontend rendering.
+- **Image-to-Video Context**:
+  - Implemented **Image-to-Video** support! Agents can now generate a video based on a previously generated image.
+  - **Orchestrator Update**: Modified `runAgentLoop` to intelligently scan the *uncompressed* chat history and extract the most recent image to pass as context to Veo.
+  - **API Update**: Updated `server.js` and `api.ts` to accept and handle the `image` parameter in generation requests.
+- **Bug Fixes**:
+  - **Duplicate Generation**: Fixed a critical bug in `orchestrator.ts` where `generateContent` was being called twice per turn, causing double execution and loops.
+  - **Syntax Errors**: Resolved syntax errors in `server.js` related to logging and markdown formatting.
+  - **Logging**: Added timestamped logging (`log`, `logError`) to the backend for better debugging.
+
 ### 12-10-2025 - Cloud Run Deployment Support
 - **Added `Dockerfile`**:
   - Implemented multi-stage build (Node.js -> Nginx) for optimized production images.
@@ -11,6 +26,9 @@ All notable changes to the Agent Builder project will be documented in this file
   - Configured SPA routing (`try_files`) and Gzip compression.
 - **Updated `README.md`**:
   - Added comprehensive deployment guide for Google Cloud Run.
+- **Added Runtime Injection**:
+  - Created `env.sh` and `services/config.ts` to support dynamic environment variables in Docker containers.
+  - Solved "Missing API Key" error in Cloud Run by injecting the key into `window.ENV` at startup.
 
 ### 12-10-2025 - Watchtower UI Update
 - **Updated `components/Watchtower.tsx`**:

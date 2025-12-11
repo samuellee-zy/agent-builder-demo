@@ -20,6 +20,7 @@
 *   **Client-Side Engine:** Runs entirely in browser.
 *   **Coordinator Pattern:** Handles task delegation automatically.
 *   **Sequential Sessions:** Auto-incrementing Session IDs (#1, #2) for clear tracking.
+*   **Image-to-Video:** Generate videos from reference images using Veo 3.1.
 *   **Secure Video Playback:** Veo videos play securely via Blob URLs.
 *   **Resilience:** Built-in exponential backoff for API reliability.
 *   **Silent Handoff:** Intelligent context management prevents Coordinator agents from repeating sub-agent outputs.
@@ -60,88 +61,112 @@ For a deep dive into the code structure, file responsibilities, undo architectur
 Follow these steps to run the Agent Builder on your local machine.
 
 ### Prerequisites
-Before you begin, ensure you have the following installed on your computer:
-1.  **Node.js** (Version 18 or higher): [Download Node.js](https://nodejs.org/).
-2.  **Git**: [Download Git](https://git-scm.com/).
-3.  **Gemini API Key**: You must have a valid API Key from [Google AI Studio](https://aistudio.google.com/).
+1.  **Node.js** (Version 18+): [Download Node.js](https://nodejs.org/).
+2.  **Google Cloud Project**: A project with **Vertex AI API** enabled.
+3.  **Google Cloud SDK**: [Install gcloud CLI](https://cloud.google.com/sdk/docs/install) (for authentication).
 
-### Step-by-Step Guide
-
-1.  **Clone the Repository**
-    Open your terminal or command prompt and run the following commands to download the code:
+### Authentication (ADC)
+The backend uses **Application Default Credentials (ADC)** to authenticate with Vertex AI.
+1.  Login with gcloud:
     ```bash
-    git clone <repository-url>
-    cd agent-builder
+    gcloud auth application-default login
     ```
-    *(If you downloaded the code as a ZIP file, extract it and open your terminal in the extracted folder)*
+    *This creates a local credential file that the Node.js server will automatically detect.*
 
-2.  **Install Dependencies**
-    Install the required software packages by running:
-    ```bash
-    npm install
-    ```
+### Running the App
 
-3.  **Configure Environment Variables**
-    1.  Create a new file in the root directory of the project named `.env`.
-    2.  Open the file in a text editor and add your API Key in the following format:
-    ```env
-    API_KEY=your_actual_api_key_starts_with_AIza...
-    ```
-    *Note: Do not wrap the key in quotes.*
+#### Option A: Production Mode (Recommended)
+Build the frontend and serve everything via the Node.js backend (identical to Cloud Run).
+```bash
+# 1. Install dependencies
+npm install
 
-4.  **Start the Application**
-    Run the development server:
-    ```bash
-    npm run dev
-    ```
+# 2. Build the React frontend
+npm run build
 
-5.  **Access the App**
-    Once the server starts, open your web browser and navigate to the URL shown in the terminal, usually:
-    `http://localhost:5173`
+# 3. Start the Server
+# Ensure you set your PROJECT_ID
+export PROJECT_ID=your-google-cloud-project-id
+npm start
+```
+Access at `http://localhost:8080`.
+
+#### Option B: Development Mode (Hot Reload)
+Run backend and frontend separately for real-time UI updates.
+
+**Terminal 1 (Backend):**
+```bash
+export PROJECT_ID=your-google-cloud-project-id
+npm start
+```
+
+**Terminal 2 (Frontend):**
+```bash
+npm run dev
+```
+Access at `http://localhost:5173` (API requests are proxied to port 8080).
 
 ---
 
 ## ☁️ Deployment to Google Cloud Run
 
-This application is containerized using Docker and Nginx, making it ready for serverless deployment on Google Cloud Run.
+This application is now a **Client-Server** app (React + Node.js), making it perfect for Cloud Run.
 
 ### Prerequisites
-1.  **Google Cloud SDK**: [Install gcloud CLI](https://cloud.google.com/sdk/docs/install).
-2.  **Docker**: Installed and running locally (optional, for local testing).
+1.  **Google Cloud Project** with **Vertex AI API** enabled.
+2.  **gcloud CLI** installed and authenticated.
 
 ### Deployment Steps
 
-1.  **Authenticate with Google Cloud**
+1.  **Set Default Project**
     ```bash
-    gcloud auth login
     gcloud config set project YOUR_PROJECT_ID
     ```
 
-2.  **Build and Deploy**
-    Run the following command to build the image using Cloud Build and deploy it to Cloud Run:
+2.  **Grant Permissions**
+    Ensure the Cloud Run Service Account has permission to call Vertex AI.
+    ```bash
+    # Get the default Compute Service Account (or use your custom one)
+    PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
+    SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+    # Grant Vertex AI User role
+    gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+      --member="serviceAccount:${SERVICE_ACCOUNT}" \
+      --role="roles/aiplatform.user"
+    ```
+
+3.  **Deploy**
+    Deploy the container. The build process automatically handles the Node.js server setup.
     ```bash
     gcloud run deploy agent-builder \
       --source . \
       --platform managed \
       --region us-central1 \
       --allow-unauthenticated \
-      --set-env-vars API_KEY=your_actual_api_key_here
+      --set-env-vars PROJECT_ID=YOUR_PROJECT_ID
     ```
-    *Replace `your_actual_api_key_here` with your Gemini API Key.*
+    *Note: We no longer pass `API_KEY`. Authentication is handled securely via the Service Account.*
 
-3.  **Access the App**
-    Once deployed, Cloud Run will provide a URL (e.g., `https://agent-builder-xyz-uc.a.run.app`). Open this URL to use your application.
+4.  **Access the App**
+    Open the URL provided by Cloud Run (e.g., `https://agent-builder-xyz-uc.a.run.app`).
 
 ### Local Docker Testing
-To test the container locally before deploying:
+```bash
+docker build -t agent-builder .
+docker run -p 8080:8080 \
+  -e PROJECT_ID=your-project-id \
+  -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
+  agent-builder
+```
+*Note: The volume mount is required to pass your local gcloud credentials to the container.*
 
-1.  **Build the Image**
-    ```bash
-    docker build -t agent-builder .
-    ```
+---
 
-2.  **Run the Container**
-    ```bash
-    docker run -p 8080:8080 agent-builder
-    ```
-    Access at `http://localhost:8080`.
+## ❓ FAQ
+
+### Why not use Vertex AI?
+This application is designed as a **Client-Side Only** demo to be easily deployable without a backend. Vertex AI requires a secure backend (e.g., Node.js/Python) to handle Service Account credentials (IAM), as these cannot be safely used directly in a browser.
+
+If you require Enterprise-grade security or Vertex AI features, we recommend adding a lightweight backend proxy (e.g., Express.js) to handle API requests and keep credentials server-side.

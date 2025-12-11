@@ -10,9 +10,13 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
 
 ## 🏗 Core Architecture
 
-### 1. The AI Architect (`services/mockAgentService.ts`)
-The entry point for creation. It uses a "Human-in-the-Loop" design process.
-- **Conversational Interface:** Uses `gemini-2.5-flash` to interview the user about their goals.
+### 1. AI Architect (Meta-Agent)
+- **Role**: Designs the multi-agent system based on user requirements.
+- **Model**: `gemini-2.5-flash` (via Vertex AI Global Endpoint).
+- **Capabilities**:
+  - Conversational interface for gathering requirements.
+  - Generates a JSON configuration for the agent system.
+  - Validates and refines the design.
 - **System Generation:** Uses `gemini-3-pro-preview` to generate a recursive JSON structure defining the agent hierarchy.
 - **Reliability Strategy:**
   - **Prompt Engineering:** Explicitly requests "group" nodes (`sequential` or `concurrent`) for structured workflows.
@@ -43,7 +47,7 @@ The recursive visualization engine for the agent tree.
 The runtime "Brain" running in the browser.
 - **Coordinator Pattern:** Dynamically injects `delegate_to_agent` tools for agents with children.
 - **Recursive Execution:** Handles nested agent loops and message passing.
-- **History Compression:** Automatically strips large Base64 image strings (`data:image/...`) from the conversation history before sending it to the model. This is critical to prevent hitting the 1M token limit (`400 INVALID_ARGUMENT`) during sessions involving image generation.
+- **History Compression:** Automatically strips large Base64 image strings (`data:image/...`) from the conversation history before sending it to the model to prevent Token Limit errors. **Crucially**, for `veo-*` models (Image-to-Video), it now intelligently scans the *uncompressed* history to extract and pass the most recent generated image as a direct API parameter, ensuring context is preserved despite compression.
 - **Echo Prevention (Silent Handoff):** 
   - Sub-Agents speak directly to the user UI via `onAgentResponse`.
   - The return value to the Coordinator is wrapped in a system tag: `[SYSTEM: The user has already seen this... DO NOT REPEAT]`.
@@ -53,8 +57,10 @@ The runtime "Brain" running in the browser.
   - **429 Rate Limits:** Aggressive wait times (min 6s).
   - **503 Overloaded:** Standard backoff.
 - **Media Handling:** 
-  - **Veo:** Polls for video completion and returns secure URLs.
-  - **Imagen:** returns Base64 data (stripped in history, rendered in UI).
+  - **Veo 3.1 (Video):** Implements **Long-Running Operation (LRO)** polling via `predictLongRunning` and `fetchPredictOperation`.
+    - **Recursive Response Parsing:** Uses a robust recursive search to locate video data (Base64) anywhere within the complex, nested JSON response from Vertex AI.
+    - **Image-to-Video:** Supports generating videos from reference images by passing the image context explicitly to the backend.
+  - **Imagen (Image):** returns Base64 data (stripped in history, rendered in UI).
   - **Specialized Handlers:** Detects `veo-*` and `imagen-*` models and routes them to `generateVideos` and `generateImages` APIs respectively, bypassing the default `generateContent` loop.
 - **Limitations:** Detects conflicts between Function Calling and Google Search Grounding (which cannot be mixed on some models) and prioritizes functions for delegation.
 
@@ -105,6 +111,7 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 2.  **Production Stage (`nginx:alpine`)**: Copies the compiled static assets (`dist/`) to the Nginx web root.
     - **Nginx Configuration**: A custom `nginx.conf` handles Client-Side Routing (SPA) by redirecting all 404s to `index.html`.
     - **Port**: Exposes port `8080` to comply with Cloud Run requirements.
+    - **Runtime Injection**: An `env.sh` script runs at container startup to inject the `API_KEY` environment variable into a `env-config.js` file, allowing the browser to access Cloud Run configuration.
 
 - **`types.ts`**: Source of Truth. Defines `Agent`, `Tool`, `ChatMessage`, `EvaluationReport`, `WatchtowerAnalysis`, etc.
 - **`App.tsx`**: Application Root. Manages routing, global agent state, and LocalStorage persistence.
@@ -122,6 +129,32 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **`services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
 - **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Nginx Serve).
 - **`nginx.conf`**: Web server configuration for SPA routing and gzip compression.
+- **`env.sh`**: Entrypoint script for injecting environment variables at runtime.
+- **`services/config.ts`**: Helper to retrieve API keys from either `window.ENV` (Docker) or `process.env` (Local).
+
+### 2. Backend (Node.js / Express)
+- **Runtime**: Node.js 18+
+- **Framework**: Express
+- **Purpose**: Proxies requests to Vertex AI, handles authentication (ADC), and serves static assets in production.
+- **Key Files**:
+  - `server.js`: Main entry point.
+  - `Dockerfile`: Multi-stage build (Node.js build -> Node.js runtime).
+
+### 3. Frontend (React + Vite)
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **State Management**: React Context + Hooks
+- **AI Integration**: Calls backend API (`/api/generate`) which wraps Vertex AI SDK.
+
+## Authentication & Security
+- **Production (Cloud Run)**: Uses **Application Default Credentials (ADC)** via the Cloud Run Service Account. No API keys are exposed to the client.
+- **Local Development**: Uses `GOOGLE_APPLICATION_CREDENTIALS` environment variable pointing to a service account key file, or `gcloud auth application-default login`.
+
+## Vertex AI Integration
+- **Global Endpoints**: Used for `gemini-2.0-flash-exp`, `gemini-1.5-pro`, etc.
+- **Regional Endpoints**: Used for `veo-2.0` and `imagen-3.0` (e.g., `us-central1`).
+- **Routing**: `server.js` handles routing based on the requested model.
 
 ---
 

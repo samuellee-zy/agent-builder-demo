@@ -15,17 +15,21 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
+# Stage 2: Serve with Node.js
+FROM node:18-alpine
 
-# Copy the built artifacts from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-# Copy custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy package files and install production dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
 
-# Expose port 8080 (Cloud Run requirement)
+# Copy server and built assets
+COPY server.js ./
+COPY --from=build /app/dist ./dist
+
+# Expose port 8080
 EXPOSE 8080
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start the server
+CMD ["node", "server.js"]

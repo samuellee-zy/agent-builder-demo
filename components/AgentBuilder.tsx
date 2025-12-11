@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
@@ -70,6 +69,8 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const testInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+
+    const [apiKey, setApiKey] = useState('managed'); // Default to managed
 
   // Load initial agent if provided
   useEffect(() => {
@@ -341,7 +342,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     if (!selectedAgent || !enhancePrompt.trim()) return;
     setIsEnhancing(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: apiKey });
         const prompt = `Rewrite AOP for Agent '${selectedAgent.name}' to be professional markdown. Current goal: ${selectedAgent.goal}. User request: ${enhancePrompt}. Current instructions: ${selectedAgent.instructions}`;
         const result = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
         if (result.text) {
@@ -356,18 +357,9 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     if (!rootAgent) return;
     
     // Check for paid models
-    const requiresBilling = AgentOrchestrator.isPaidModelInUse(rootAgent);
-    if (requiresBilling) {
-        try {
-            const hasKey = await window.aistudio.hasSelectedApiKey();
-            if (!hasKey) {
-                setShowBillingDialog(true);
-                return;
-            }
-        } catch (e) {
-            console.error("Billing check failed:", e);
-        }
-    }
+      // Billing check removed for Vertex AI migration (handled by backend/ADC)
+      // const requiresBilling = AgentOrchestrator.isPaidModelInUse(rootAgent);
+      // if (requiresBilling) { ... }
 
     const initMsg: ChatMessage = {
         id: 'init',
@@ -433,8 +425,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     setLastError(null);
 
     try {
-      const orchestrator = new AgentOrchestrator({
-        apiKey: process.env.API_KEY || '',
+        const orchestrator = new AgentOrchestrator({
         rootAgent: rootAgent,
         onToolStart: (agent, tool, args) => {
           if (tool === 'delegate_to_agent') {

@@ -14,17 +14,33 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('aop');
   
   // Initialize agents from storage, falling back to sample if empty
-  const [agents, setAgents] = useState<Agent[]>(() => {
-    const saved = loadAgentsFromStorage();
-    return saved.length > 0 ? saved : SAMPLE_AGENTS;
-  });
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [selectedAgent, setSelectedAgent] = useState<Agent | undefined>(undefined);
 
+  // Load agents on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const saved = await loadAgentsFromStorage();
+        setAgents(saved.length > 0 ? saved : SAMPLE_AGENTS);
+      } catch (e) {
+        console.error("Failed to load agents:", e);
+        setAgents(SAMPLE_AGENTS);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
   // Persistence Effect: Save whenever agents change
   useEffect(() => {
-    saveAgentsToStorage(agents);
-  }, [agents]);
+    if (!isLoading && agents.length > 0) {
+      saveAgentsToStorage(agents);
+    }
+  }, [agents, isLoading]);
 
   const handleAgentCreated = (newAgent: Agent) => {
     setAgents(prev => {

@@ -1,10 +1,10 @@
 
 import { Agent, ChatMessage } from '../types';
 import { AVAILABLE_TOOLS_REGISTRY } from './tools';
-import { GoogleGenAI, FunctionDeclaration, Type, GenerateContentResponse, Tool as GenAITool, Content, Part } from "@google/genai";
+import { generateContent } from './api';
+import { FunctionDeclaration, Type, GenerateContentResponse, Tool as GenAITool, Content, Part } from "@google/genai";
 
 interface OrchestratorOptions {
-  apiKey: string;
   rootAgent: Agent;
   onToolStart?: (agentName: string, toolName: string, args: any) => void;
   onToolEnd?: (agentName: string, toolName: string, result: any) => void;
@@ -19,20 +19,16 @@ const PAID_MODELS = ['veo', 'imagen', 'gemini-3-pro-image-preview'];
  * It handles the Coordinator Pattern by dynamically injecting a `delegate_to_agent` tool.
  */
 export class AgentOrchestrator {
-  private apiKey: string;
   private rootAgent: Agent;
-  private ai: GoogleGenAI;
   private onToolStart?: (agentName: string, toolName: string, args: any) => void;
   private onToolEnd?: (agentName: string, toolName: string, result: any) => void;
   private onAgentResponse?: (agentName: string, content: string) => void;
 
   constructor(options: OrchestratorOptions) {
-    this.apiKey = options.apiKey;
     this.rootAgent = options.rootAgent;
     this.onToolStart = options.onToolStart;
     this.onToolEnd = options.onToolEnd;
     this.onAgentResponse = options.onAgentResponse;
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
   }
 
   /**
@@ -83,9 +79,10 @@ export class AgentOrchestrator {
             if (match && match[1]) {
                 const seconds = parseFloat(match[1]);
                 waitTime = Math.ceil(seconds * 1000) + 1000; // Wait requested time + 1s buffer
-                console.warn(`API Rate Limit (429). Server requested wait: ${seconds}s. Sleeping for ${waitTime}ms.`);
+              console.warn(`API Rate Limit (429). Waiting ${seconds}s as requested.`);
             } else {
-                waitTime = Math.max(delay, 6000);
+              // Increase default backoff to 15s for stricter quotas (like Veo)
+              waitTime = Math.max(delay, 15000);
                 console.warn(`API Rate Limit (429). Retrying in ${waitTime}ms...`);
             }
             
@@ -111,46 +108,32 @@ export class AgentOrchestrator {
    * Handles Video Generation for Veo models.
    * Uses `generateVideos` instead of `generateContent`.
    */
-  private async generateVideo(model: string, prompt: string, agentName: string): Promise<string> {
+  private async generateVideo(model: string, prompt: string, agentName: string, image?: string | null): Promise<string> {
     try {
       // FIX: Auto-migrate deprecated/legacy model IDs to prevent 404s
       let targetModel = model;
       if (targetModel === 'veo-3.0-fast-generate') {
-          targetModel = 'veo-3.1-fast-generate-preview';
+        targetModel = 'veo-3.1-fast-generate-001';
           console.warn(`[Orchestrator] Auto-migrating deprecated model '${model}' to '${targetModel}'`);
       }
 
-      if (this.onToolStart) this.onToolStart(agentName, 'generateVideos', { prompt, model: targetModel });
+      if (this.onToolStart) this.onToolStart(agentName, 'generateVideos', { prompt, model: targetModel, hasImage: !!image });
 
-      let operation = await this.retryOperation(() => this.ai.models.generateVideos({
+      // Call backend via generateContent
+      const result = await this.retryOperation(() => generateContent({
         model: targetModel,
         prompt: prompt,
-        config: {
-          numberOfVideos: 1,
-          resolution: '720p',
-          aspectRatio: '16:9'
-        }
+        image: image // Pass the image to the API
       }));
 
-      // Poll for completion
-      while (!operation.done) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        operation = await this.retryOperation(() => this.ai.operations.getVideosOperation({ operation }));
-      }
-
-      const uri = operation.response?.generatedVideos?.[0]?.video?.uri;
-      if (!uri) throw new Error("No video URI returned in response.");
-
-      // Append API key for secure frontend fetching
-      const secureUrl = `${uri}&key=${this.apiKey}`;
-      const displayResult = `Here is your generated video:\n\n[Download Video](${secureUrl})`;
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("No video URI returned in response.");
 
       if (this.onToolEnd) this.onToolEnd(agentName, 'generateVideos', "Success");
       // Emit the RICH content to the UI
-      if (this.onAgentResponse) this.onAgentResponse(agentName, displayResult);
+      if (this.onAgentResponse) this.onAgentResponse(agentName, text);
       
       // RETURN a simple system message to the Coordinator.
-      // This prevents the Coordinator from "echoing" the video link and causing duplicate outputs.
       return "Video generated successfully and displayed to user.";
 
     } catch (error: any) {
@@ -170,27 +153,20 @@ export class AgentOrchestrator {
     try {
       if (this.onToolStart) this.onToolStart(agentName, 'generateImages', { prompt, model });
 
-      const response = await this.retryOperation(() => this.ai.models.generateImages({
+      // Call backend via generateContent
+      const result = await this.retryOperation(() => generateContent({
         model: model,
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          aspectRatio: '1:1',
-          outputMimeType: 'image/jpeg'
-        }
+        prompt: prompt
       }));
 
-      const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-      if (!imageBytes) throw new Error("No image bytes returned.");
-
-      const displayResult = `Here is your generated image:\n\n![Generated Image](data:image/jpeg;base64,${imageBytes})`;
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("No image data returned.");
       
       if (this.onToolEnd) this.onToolEnd(agentName, 'generateImages', "Success");
       // Emit the RICH content to the UI
-      if (this.onAgentResponse) this.onAgentResponse(agentName, displayResult);
+      if (this.onAgentResponse) this.onAgentResponse(agentName, text);
 
       // RETURN a simple system message to the Coordinator.
-      // This prevents the Coordinator from echoing the image AND keeps the Coordinator's context window small (no base64).
       return "Image generated successfully and displayed to user.";
 
     } catch (error: any) {
@@ -223,7 +199,25 @@ export class AgentOrchestrator {
     
     // 0. Specialized Model Dispatch
     if (agent.model.startsWith('veo-')) {
-        return this.generateVideo(agent.model, input, agent.name);
+      // Extract the most recent image from history or input for image-to-video
+      let contextImage = null;
+
+      // Check input first
+      const inputImageMatch = input.match(/!\[.*?\]\((data:image\/[^;]+;base64,[^)]+)\)/);
+      if (inputImageMatch) {
+        contextImage = inputImageMatch[1];
+      } else {
+        // Check history (reverse order)
+        for (let i = history.length - 1; i >= 0; i--) {
+          const match = history[i].content.match(/!\[.*?\]\((data:image\/[^;]+;base64,[^)]+)\)/);
+          if (match) {
+            contextImage = match[1];
+            break;
+          }
+        }
+      }
+
+      return this.generateVideo(agent.model, input, agent.name, contextImage);
     }
     if (agent.model.startsWith('imagen-')) {
         return this.generateImage(agent.model, input, agent.name);
@@ -317,21 +311,19 @@ RULES:
         turns++;
 
         try {
-            // A. Call Model
-            const result: GenerateContentResponse = await this.retryOperation(() => this.ai.models.generateContent({
-                model: agent.model || 'gemini-2.5-flash',
-                contents: currentContents,
-                config: {
-                    systemInstruction,
-                    tools: tools.length > 0 ? tools : undefined,
-                    temperature: 0.7,
-                }
-            }));
+          // Call Model via Backend Proxy
+          const resultWithTools = await this.retryOperation(() => generateContent({
+            model: agent.model || 'gemini-2.5-flash',
+            contents: currentContents,
+            systemInstruction,
+            // @ts-ignore - api.ts interface might need update, but passing it anyway
+            tools: tools.length > 0 ? tools : undefined,
+          }));
 
-            const responseContent = result.candidates?.[0]?.content;
+          const responseContent = resultWithTools.candidates?.[0]?.content;
             if (!responseContent) throw new Error("No content in response");
 
-            const functionCalls = responseContent.parts?.filter(p => p.functionCall).map(p => p.functionCall);
+          const functionCalls = responseContent.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
             
             if (responseContent.parts) {
                 currentContents.push({ role: 'model', parts: responseContent.parts });
@@ -385,7 +377,7 @@ RULES:
                 currentContents.push({ role: 'user', parts: functionResponses });
                 
             } else {
-                const text = responseContent.parts?.map(p => p.text).join('') || '';
+              const text = responseContent.parts?.map((p: any) => p.text).join('') || '';
                 
                 if (text) {
                     finalResponse = text;

@@ -5,8 +5,17 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // 'process.env.API_KEY': JSON.stringify(env.API_KEY) // Removed: Using backend proxy
     }
   };
 });

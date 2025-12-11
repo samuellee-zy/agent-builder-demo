@@ -1,8 +1,6 @@
-
-
 import { Agent, ChatMessage, EvaluationMetric, EvaluationReport, EvaluationSession } from '../types';
 import { AgentOrchestrator } from './orchestrator';
-import { GoogleGenAI } from "@google/genai";
+import { generateContent } from './api';
 
 // Helper to strip markdown code blocks and find JSON object OR array
 const cleanJson = (text: string): string => {
@@ -38,10 +36,10 @@ const compressForJudge = (text: string): string => {
 };
 
 export class EvaluationService {
-  private ai: GoogleGenAI;
+  // private ai: GoogleGenAI; // No longer needed as generateContent is a static helper
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // The constructor is now empty as generateContent is a static helper
   }
 
   /**
@@ -89,14 +87,14 @@ export class EvaluationService {
     `;
 
     try {
-      const result = await this.retryOperation(() => this.ai.models.generateContent({
+      const result = await this.retryOperation(() => generateContent({
         model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
+        prompt: prompt,
+        responseMimeType: 'application/json'
       }));
 
-      if (result.text) {
-        const cleaned = cleanJson(result.text);
+      if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const cleaned = cleanJson(result.candidates[0].content.parts[0].text);
         return JSON.parse(cleaned);
       }
       throw new Error("Empty response from scenario generator");
@@ -120,28 +118,14 @@ export class EvaluationService {
     const latencies: number[] = [];
     let errorCount = 0;
 
-    // 1. Setup User Simulator
-    const simulator = this.ai.chats.create({
-      model: simulatorModel,
-      config: {
-        systemInstruction: `You are a user testing an AI agent. 
-        SCENARIO: ${scenario}
-        
-        Your goal is to act out this scenario realistically. 
-        - Be concise.
-        - If the agent fails, express frustration appropriately.
-        - If the agent succeeds, thank them.
-        - Do not break character.
-        `
-      }
-    });
+    // 1. Setup User Simulator (logic integrated into generateContent calls)
 
     // 2. Setup System Under Test (Orchestrator)
     // We must capture onAgentResponse to get "Rich" content (Images/Videos)
     let turnMessages: ChatMessage[] = [];
     
     const orchestrator = new AgentOrchestrator({
-      apiKey: process.env.API_KEY || '',
+      apiKey: '', // No longer needed
       rootAgent: agent,
       onAgentResponse: (name, content) => {
           // DEDUPLICATION: Check against the last message in THIS turn buffer
@@ -163,8 +147,16 @@ export class EvaluationService {
 
     try {
       // Initial user message generation (Simulator starts)
-      const simStart = await this.retryOperation(() => simulator.sendMessage({ message: "Start the conversation naturally based on the scenario." }));
-      currentInput = simStart.text || "Hello.";
+      const simStart = await this.retryOperation(() => generateContent({
+        model: simulatorModel,
+        prompt: `You are simulating a user for a chat agent.
+Agent Goal: ${agent.goal}
+Scenario: ${scenario}
+
+Start the conversation with a message relevant to the scenario.`
+      }));
+      const initialMessage = simStart.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      currentInput = initialMessage || "Hello.";
       
       transcript.push({
         id: Date.now().toString(),
@@ -225,8 +217,18 @@ export class EvaluationService {
 
         // Simulator Turn (React to agent)
         if (i < MAX_TURNS - 1) {
-            const simResponse = await this.retryOperation(() => simulator.sendMessage({ message: fullAgentResponse }));
-            currentInput = simResponse.text || ".";
+          const history = transcript.map(m => ({ role: m.role, content: m.content }));
+          const agentResponse = fullAgentResponse;
+
+          const simResponse = await this.retryOperation(() => generateContent({
+            model: simulatorModel,
+            prompt: `History: ${JSON.stringify(history)}
+Agent just said: ${agentResponse}
+Reply as the user in the scenario: ${scenario}`
+          }));
+
+          const userReply = simResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          currentInput = userReply || ".";
             
             transcript.push({
                 id: Date.now().toString(),
@@ -296,16 +298,15 @@ export class EvaluationService {
       ]
     `;
 
-    // Attempt 1: Gemini 3 Pro
     try {
-      const result = await this.retryOperation(() => this.ai.models.generateContent({
+      const result = await this.retryOperation(() => generateContent({
         model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
+        prompt: prompt,
+        responseMimeType: 'application/json'
       }));
 
-      if (result.text) {
-        const cleaned = cleanJson(result.text);
+      if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const cleaned = cleanJson(result.candidates[0].content.parts[0].text);
         return JSON.parse(cleaned);
       }
     } catch (e) {
@@ -314,14 +315,14 @@ export class EvaluationService {
 
     // Attempt 2: Gemini 2.5 Flash Fallback
     try {
-        const result = await this.retryOperation(() => this.ai.models.generateContent({
+      const result = await this.retryOperation(() => generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
+        prompt: prompt,
+        responseMimeType: 'application/json'
         }));
 
-        if (result.text) {
-            const cleaned = cleanJson(result.text);
+      if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const cleaned = cleanJson(result.candidates[0].content.parts[0].text);
             return JSON.parse(cleaned);
         }
     } catch (e) {
