@@ -7,6 +7,8 @@
 
 ### 🧠 Intelligent Design
 *   **Conversational Architect:** Describe your goal, and the AI Architect will design the entire system.
+*   **Persistent Memory:** Chat sessions are saved locally (IndexedDB), so you never lose your context even after a refresh.
+*   **Instruction Enhancement:** One-click "Enhance" button to professionally rewrite agent instructions using Gemini.
 *   **Smart Patterns:** Automatically detects workflows (Sequential vs Concurrent).
 *   **Robust Generation:** Multi-model strategy for reliable architecture generation.
 
@@ -40,11 +42,17 @@
 *   **Sentiment & Latency Analysis:** High-level metrics for global agent health.
 *   **Strategic Recommendations:** AI-generated advice on missing tools or instruction improvements based on actual session data.
 
+### 🔌 Integrated Tools
+*   **Google Search**: Native grounding for up-to-date information.
+*   **NSW Transport**: Real-time data for Trains, Metro, and Trip Planning (GTFS-R).
+*   **Veo & Imagen**: State-of-the-art Generative Media tools.
+*   **Mock Enterprise Tools**: CRM, Order Status, and Ticketing systems for business demos.
+
 ### 💾 Registry & History
 *   **Persistent Storage:** Save agents to LocalStorage.
 *   **Rich History Replay:** Review past sessions with full media rendering (Veo/Imagen).
 *   **Evaluation Logs:** Access historical test reports and drill down into individual scenario transcripts.
-*   **Tool Library:** Inspect code and test functions for over 8+ built-in tools.
+*   **Tool Library:** Inspect code and test functions for over 10+ built-in tools.
 
 ## 💻 Tech Stack
 *   **Frontend:** React 18, TypeScript, Tailwind CSS (via CDN/Config)
@@ -144,7 +152,7 @@ This application is now a **Client-Server** app (React + Node.js), making it per
       --platform managed \
       --region us-central1 \
       --allow-unauthenticated \
-      --set-env-vars PROJECT_ID=YOUR_PROJECT_ID
+      --set-env-vars PROJECT_ID=YOUR_PROJECT_ID,TFNSW_API_KEY=your_transport_api_key
     ```
     *Note: We no longer pass `API_KEY`. Authentication is handled securely via the Service Account.*
 
@@ -163,6 +171,29 @@ docker run -p 8080:8080 \
 *Note: The volume mount is required to pass your local gcloud credentials to the container.*
 
 ---
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 🔴 500 Error on NSW Transport Tools
+**Symptoms:**
+- "Failed to load resource: the server responded with a status of 500" in browser console.
+- Transport tools (Trip Planner, Realtime) fail to return results.
+
+**Cause:**
+The `TFNSW_API_KEY` environment variable is missing on the server. The backend requires this key to authenticate with the Transport for NSW Open Data API.
+
+**Resolution:**
+1.  **Obtain a Key:** Register at [Transport for NSW Open Data](https://opendata.transport.nsw.gov.au/) and create an application to get an API Key.
+2.  **Update Cloud Run:**
+    ```bash
+    gcloud run services update agent-builder \
+      --update-env-vars TFNSW_API_KEY=your_actual_api_key_here
+    ```
+    *Or set it via the Google Cloud Console > Cloud Run > Edit & Deploy > Variables.*
 
 ## ❓ FAQ
 

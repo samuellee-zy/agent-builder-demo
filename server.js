@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 8080;
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || process.env.PROJECT_ID;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Vertex AI Clients
@@ -46,11 +46,12 @@ const MODEL_CONFIG = {
   'gemini-1.5-flash-002': { location: 'global' },
   'gemini-1.5-pro-002': { location: 'global' },
   // Mapped Models (Internal -> Actual)
-  'gemini-2.5-flash': { location: 'global', modelId: 'gemini-2.0-flash-exp' }, // Mapping placeholder to actual
-  'gemini-3-pro-preview': { location: 'global', modelId: 'gemini-2.0-flash-exp' }, // Mapping placeholder to actual
+  'gemini-2.5-flash': { location: 'global', modelId: 'gemini-2.5-flash' }, // Direct mapping per user request
+  'gemini-3-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' }, // Use actual ID
+  'gemini-3-pro': { location: 'global', modelId: 'gemini-3-pro-preview' }, // Map alias to preview
 
   // Regional Models (Veo / Imagen)
-  'gemini-2.0-flash-exp': { location: 'global' },
+  // 'gemini-2.0-flash-exp': { location: 'global' }, // Removed as requested
 
   // Regional Models (Veo / Imagen)
   'imagen-3.0-generate-001': { location: 'us-central1' },
@@ -349,6 +350,112 @@ app.post('/api/generate', async (req, res) => {
     logError(`[API Error] ${error.message} `);
     const details = error.response ? JSON.stringify(error.response.data) : error.message;
     res.status(500).json({ error: error.message, details: details });
+  }
+});
+
+// NSW Trains Realtime Proxy
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+let GtfsRealtimeBindings;
+try {
+  GtfsRealtimeBindings = require('gtfs-realtime-bindings');
+} catch (e) {
+  console.warn('gtfs-realtime-bindings not found. NSW Trains features will be disabled.');
+}
+
+app.post('/api/transport/:dataset', async (req, res) => {
+  const { dataset } = req.params;
+  const VALID_DATASETS = ['sydneytrains', 'metro'];
+
+  if (!VALID_DATASETS.includes(dataset)) {
+    return res.status(400).json({ error: `Invalid dataset. Supported: ${VALID_DATASETS.join(', ')}` });
+  }
+
+  const TFNSW_API_KEY = process.env.TFNSW_API_KEY;
+  if (!TFNSW_API_KEY) {
+    return res.status(500).json({ error: 'TFNSW_API_KEY not configured on server.' });
+  }
+
+  try {
+    const response = await fetch(`https://api.transport.nsw.gov.au/v2/gtfs/realtime/${dataset}`, {
+      headers: {
+        'Authorization': `apikey ${TFNSW_API_KEY}`,
+        'Accept': 'application/x-google-protobuf'
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Transport API Error (${response.status}): ${text}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+
+    if (!GtfsRealtimeBindings) {
+      throw new Error('gtfs-realtime-bindings package is missing.');
+    }
+
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+
+    // Convert to JSON-friendly object (ProtoBuf objects can be complex)
+    // We might want to filter or simplify, but for now let's return the whole feed.
+    // It might be huge. Let's try to return it directly.
+    // FeedMessage has 'entity' array.
+
+    // To avoid circular references or BigInt issues, we can just return feed.
+    // But protobufjs objects sometimes have toObject().
+    const feedObject = GtfsRealtimeBindings.transit_realtime.FeedMessage.toObject(feed, {
+      enums: String,  // enums as strings
+      longs: String,  // longs as strings
+      bytes: String,  // bytes as base64
+      defaults: true, // include default values
+      arrays: true,   // empty arrays as []
+      objects: true,  // empty objects as {}
+      oneofs: true    // include virtual oneof fields
+    });
+
+    res.json(feedObject);
+  } catch (error) {
+    logError(`[Transport/${dataset}] Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/transport/planner/:endpoint', async (req, res) => {
+  const { endpoint } = req.params;
+  const TFNSW_API_KEY = process.env.TFNSW_API_KEY;
+
+  if (!TFNSW_API_KEY) {
+    return res.status(500).json({ error: 'TFNSW_API_KEY not configured on server.' });
+  }
+
+  // Construct query string from request query params
+  const queryParams = new URLSearchParams(req.query);
+  // Enforce JSON output format as per Swagger requirements
+  queryParams.set('outputFormat', 'rapidJSON');
+  queryParams.set('coordOutputFormat', 'EPSG:4326');
+  queryParams.set('version', '10.2.1.42'); // Use version from swagger default or recent
+
+  const url = `https://api.transport.nsw.gov.au/v1/tp/${endpoint}?${queryParams.toString()}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `apikey ${TFNSW_API_KEY}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Trip Planner API Error (${response.status}): ${text}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logError(`[TripPlanner/${endpoint}] Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 });
 

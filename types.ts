@@ -38,6 +38,7 @@ export interface ChatMessage {
   latency?: number; // In milliseconds
   // For UI visualization of tool calls/thought process
   toolCalls?: { name: string; args: any; result?: any }[];
+  hidden?: boolean; // If true, not shown in UI but sent to model
 }
 
 export type BuildStep = 'input' | 'building' | 'review' | 'testing';

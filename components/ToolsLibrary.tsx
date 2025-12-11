@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
 import { Tool } from '../types';
-import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight } from 'lucide-react';
+import { LocationAutocomplete } from './LocationAutocomplete';
+import { ModeDropdown } from './ModeDropdown';
+import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight, MapPin, Train } from 'lucide-react';
 
 export const ToolsLibrary: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
@@ -28,7 +29,12 @@ export const ToolsLibrary: React.FC = () => {
   const handleSelectTool = (tool: Tool) => {
     setSelectedTool(tool);
     setExecutionResult(null);
-    setTestParams({});
+      // Default mode to 'train' if it's the trip planner
+      if (tool.id === 'nsw_trip_planner') {
+          setTestParams({ mode: 'train' });
+      } else {
+          setTestParams({});
+      }
   };
 
   const handleParamChange = (key: string, value: string) => {
@@ -121,34 +127,64 @@ export const ToolsLibrary: React.FC = () => {
                       <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
                           <div className="bg-slate-800/50 p-3 border-b border-slate-800 flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                  <Terminal size={14} className="text-brand-400" />
-                                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Mock Tester</h4>
+                                  <Terminal size={16} className="text-brand-400" />
+                                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Mock Tester</h4>
                               </div>
                               <button 
                                 onClick={handleRunMock}
                                 disabled={isExecuting}
-                                className="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
+                                  className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-lg shadow-brand-900/20"
                               >
-                                  {isExecuting ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Play size={10} fill="currentColor" />}
+                                  {isExecuting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Play size={14} fill="currentColor" />}
                                   Run Function
                               </button>
                           </div>
                           
                           <div className="p-4 space-y-4">
                               {hasParams && (
-                                  <div className="space-y-3">
-                                      {Object.entries(params).map(([key, schema]: any) => (
-                                          <div key={key}>
-                                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key}</label>
-                                              <input 
-                                                type="text" 
-                                                value={testParams[key] || ''}
-                                                onChange={(e) => handleParamChange(key, e.target.value)}
-                                                placeholder={`Enter ${schema.type.toLowerCase()}...`}
-                                                className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none font-mono"
-                                              />
-                                          </div>
-                                      ))}
+                                  <div className="space-y-3 relative">
+                                      {Object.entries(params).map(([key, schema]: any) => {
+                                          // Custom rendering for Trip Planner
+                                          if (selectedTool.id === 'nsw_trip_planner') {
+                                              if (key === 'origin' || key === 'destination') {
+                                                  return (
+                                                      <div key={key}>
+                                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key}</label>
+                                                          <LocationAutocomplete
+                                                              value={testParams[key] || ''}
+                                                              onChange={(val) => handleParamChange(key, val)}
+                                                              placeholder={`Search ${key}...`}
+                                                          />
+                                                      </div>
+                                                  );
+                                              }
+                                              if (key === 'mode') {
+                                                  return (
+                                                      <div key={key}>
+                                                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key}</label>
+                                                          <ModeDropdown
+                                                              value={testParams[key] || 'train'}
+                                                              onChange={(val) => handleParamChange(key, val)}
+                                                          />
+                                                      </div>
+                                                  );
+                                              }
+                                          }
+
+                                          // Default rendering
+                                          return (
+                                              <div key={key}>
+                                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key}</label>
+                                                  <input
+                                                      type="text"
+                                                      value={testParams[key] || ''}
+                                                      onChange={(e) => handleParamChange(key, e.target.value)}
+                                                      placeholder={`Enter ${schema.type.toLowerCase()}...`}
+                                                      className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none font-mono"
+                                                  />
+                                              </div>
+                                          );
+                                      })}
                                   </div>
                               )}
 

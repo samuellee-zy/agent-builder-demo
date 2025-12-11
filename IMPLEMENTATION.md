@@ -28,6 +28,17 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
 ### 2. The Visual Builder (`components/AgentBuilder.tsx`)
 A state-machine driven component managing the lifecycle of an agent.
 - **State Machine:** Input -> Building -> Review -> Testing.
+- **Persistence (IndexedDB):** 
+  - Uses `idb-keyval` to store the **Architect Chat History** locally.
+  - Keys are scoped by Agent ID (`architect_chat_${id}`), ensuring conversations are tied to specific drafts.
+  - **UX Pattern:** On load, the "Hero Input" is shown to provide a clean entry point, but the history is silently loaded in the background. Interacting with the input or clicking "Consult Architect" restores the full session.
+- **Enhance Workflow:**
+  - Integrated **"Enhance"** button that sends the current Agent Instructions + User Feedback to `gemini-2.5-flash`.
+  - Returns a rewritten, professional Markdown version of the instructions.
+- **Consult Architect (State Sync):**
+  - Allows users to jump from the Visual Diagram back to the Chat.
+  - **Hidden Sync:** Injects a hidden `[SYSTEM UPDATE]` message containing the current JSON state of the agent tree. This ensures the AI Architect is aware of any manual edits (name changes, tool additions) made in the UI.
+  - **Deduping:** Prevents chat clutter by checking for existing confirmation messages before adding new ones.
 - **Undo/Revert Architecture:** Maintains a `history` stack of the agent tree. Destructive actions (delete, add sub-agent) call `saveCheckpoint()` first. `handleUndo` restores the previous state.
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
@@ -120,6 +131,10 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **`components/AgentRegistry.tsx`**: Dashboard for auditing history and running evaluations.
 - **`components/Watchtower.tsx`**: Observability dashboard for high-level insights and intent mapping.
 - **`components/ToolsLibrary.tsx`**: Library view with code inspection and mock testing.
+- **`components/LocationFinder.tsx`**: Wrapper for the Trip Planner location search UI.
+- **`components/LocationAutocomplete.tsx`**: Reusable autocomplete component with portal-based rendering and scroll locking.
+- **`components/TransportModeSelector.tsx`**: Wrapper for the transport mode selection UI.
+- **`components/ModeDropdown.tsx`**: Reusable dropdown component for selecting transport modes.
 - **`components/VideoMessage.tsx`**: Secure video player component using Blob URL fetching.
 - **`services/orchestrator.ts`**: Client-side AI runtime and tool execution.
 - **`services/evaluation.ts`**: Evaluation logic (Scenario Gen, Sim, Scoring).
@@ -136,7 +151,7 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **Framework**: Express
 - **Purpose**: Proxies requests to Vertex AI, handles authentication (ADC), and serves static assets in production.
 - **Key Files**:
-  - `server.js`: Main entry point.
+  - `server.js`: Main entry point. Configured with **50MB Payload Limit** to handle rich media history.
   - `Dockerfile`: Multi-stage build (Node.js build -> Node.js runtime).
 
 ### 3. Frontend (React + Vite)
@@ -169,6 +184,9 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 | `check_order_status` | Order Status | Customer Service | Mock logistics tracking. |
 | `kb_search` | KB Search | Customer Service | Mock RAG/Policy search. |
 | `create_support_ticket` | Create Ticket | Customer Service | Mock ticketing system. |
+| `nsw_trains_realtime` | NSW Trains | Transport | Real-time train positions & delays (GTFS). |
+| `nsw_metro_realtime` | NSW Metro | Transport | Real-time metro positions (GTFS). |
+| `nsw_trip_planner` | Trip Planner | Transport | Multimodal route planning (Train, Metro, Ferry, etc). |
 
 ---
 

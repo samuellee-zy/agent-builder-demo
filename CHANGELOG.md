@@ -4,6 +4,36 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12/12/2025 - Architect Persistence & Enhancement Workflow
+- **Architect Chat Persistence**:
+  - Implemented **IndexedDB Storage** (via `idb-keyval`) to persist AI Architect chat sessions across page reloads.
+  - **Smart Session Management**: Chat history is saved per-agent (or draft). Returning to the builder restores the context while still presenting the clean "Hero Input" for a fresh feel.
+- **Enhance Instructions**:
+  - Added **"Enhance" Button** to the Agent Config panel.
+  - Uses `gemini-2.5-flash` (via `/api/generate`) to rewrite and professionalize Agent Operating Procedures (AOP) based on user feedback.
+- **Consult Architect**:
+  - Added **"Consult Architect"** workflow in the Visual Builder.
+  - Allows users to **sync manual changes** (JSON state) back to the chat context via hidden system messages.
+  - Automatically switches view to the Chat interface for seamless iteration.
+- **UX Improvements**:
+  - **Chat Deduping**: Implemented logic to prevent duplicate "Synced" confirmation messages in the chat history.
+  - **Blank Screen Fix**: Restored critical helper functions (`handleDeleteNode`, `handleUndo`) that caused runtime errors during the refactor.
+  - **Hero Input**: Refined the landing experience to always show the large input box first, ensuring a welcoming entry point even for existing sessions.
+- **Mock Tester Enhancements**:
+  - **Location Finder**: Added a dedicated UI component for `nsw_trip_planner` that allows users to search for stops/stations with autocomplete (mocked) and injects the ID directly into the chat.
+  - **Transport Mode Selector**: Added a visual selector for transport modes (Train, Metro, Ferry, Bus, Light Rail) to simplify testing the Trip Planner tool.
+  - **Smart Tool Detection**: The UI automatically detects when the active agent has transport tools and reveals these helper controls.
+- **UI/UX Polish**:
+  - **Global Overscroll Fix**: Updated `index.html` with `overscroll-behavior: none` to prevent the "rubber-banding" effect on Mac trackpads, fixing the "huge gap" issue.
+  - **Dropdown Stability**: Implemented portal-based rendering and scroll-locking in `LocationAutocomplete` and `ModeDropdown` to prevent menus from detaching or closing unexpectedly during scroll.
+  - **Tools Library**: Enhanced the "Run Function" button styling for better visibility and clickability.
+- **Server Hardening & Configuration**:
+  - **Payload Limit Increased**: Increased Express `json` body limit to **50MB** (from default 100kb) to prevent `413 Payload Too Large` errors when processing large chat histories or image data.
+  - **Strict Model Mapping**:
+    - **Gemini 3 Pro**: Server-side mapping now strictly redirects `gemini-3-pro` to `gemini-3-pro-preview` to resolve 404 errors.
+    - **Gemini 2.5 Flash**: Mapped directly to `gemini-2.5-flash` (1:1) per user preference, removing the experimental 2.0 fallback.
+    - **No Gemini 2.0**: Explicitly removed `gemini-2.0-flash-exp` from active configuration to ensure stability.
+
 ### 11/12/2025 - Veo 3.1 & Image-to-Video Support
 - **Veo 3.1 Implementation**:
   - Upgraded video generation to use **Veo 3.1** via Vertex AI's `predictLongRunning` LRO pattern.
@@ -18,6 +48,16 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Duplicate Generation**: Fixed a critical bug in `orchestrator.ts` where `generateContent` was being called twice per turn, causing double execution and loops.
   - **Syntax Errors**: Resolved syntax errors in `server.js` related to logging and markdown formatting.
   - **Logging**: Added timestamped logging (`log`, `logError`) to the backend for better debugging.
+
+### 11/12/2025 - NSW Trains Realtime Tool
+- **New Tool**: Added `nsw_trains_realtime` to fetch live trip updates from Transport for NSW.
+- **Backend Proxy**: Implemented secure proxy in `server.js` to handle API authentication and Protobuf decoding (`gtfs-realtime-bindings`).
+- **Security**: API Key is stored server-side and never exposed to the client.
+
+### 11/12/2025 - NSW Metro Realtime Tool
+- **New Tool**: Added `nsw_metro_realtime` to fetch live trip updates for the Sydney Metro network.
+- **Dynamic Proxy**: Refactored the backend endpoint to `/api/transport/:dataset` to support both Trains and Metro via a single secure proxy.
+- **NSW Trip Planner Tool**: Added `nsw_trip_planner` tool to plan trips between locations using specific transport modes (Train, Metro, Ferry, etc.). Implemented `/api/transport/planner/:endpoint` proxy.
 
 ### 10/12/2025 - Cloud Run Deployment Support
 - **Added `Dockerfile`**:

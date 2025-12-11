@@ -6,6 +6,9 @@ import { AgentOrchestrator } from '../services/orchestrator';
 import { GoogleGenAI } from "@google/genai";
 import { AgentDiagram } from './AgentDiagram';
 import { VideoMessage } from './VideoMessage';
+import { LocationFinder } from './LocationFinder';
+import { TransportModeSelector } from './TransportModeSelector';
+import { get, set } from 'idb-keyval';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -30,7 +33,9 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
-  Undo2
+    Undo2,
+    MapPin,
+    Train
 } from 'lucide-react';
 
 interface AgentBuilderProps {
@@ -66,6 +71,8 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const [isTyping, setIsTyping] = useState(false);
   const [activeToolLog, setActiveToolLog] = useState<string | null>(null);
   const [showBillingDialog, setShowBillingDialog] = useState(false);
+    const [showLocationFinder, setShowLocationFinder] = useState(false);
+    const [showModeSelector, setShowModeSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const testInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -82,121 +89,38 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     }
   }, [initialAgent]);
 
-  // Helper to find agent in tree
-  const findAgentById = (id: string, current: Agent): Agent | null => {
-    if (current.id === id) return current;
-    if (current.subAgents) {
-      for (const sub of current.subAgents) {
-        const found = findAgentById(id, sub);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  const updateAgentInTree = (updated: Agent, current: Agent): Agent => {
-    if (current.id === updated.id) return updated;
-    if (current.subAgents) {
-      return {
-        ...current,
-        subAgents: current.subAgents.map(sub => updateAgentInTree(updated, sub))
-      };
-    }
-    return current;
-  };
-
-  const deleteNodeFromTree = (nodeId: string, current: Agent): Agent | null => {
-      if (current.id === nodeId) return null;
-      if (current.subAgents) {
-          return {
-              ...current,
-              subAgents: current.subAgents
-                  .map(sub => deleteNodeFromTree(nodeId, sub))
-                  .filter((sub): sub is Agent => sub !== null)
-          };
-      }
-      return current;
-  };
-
-  // --- History Management ---
-  const saveCheckpoint = () => {
-    if (rootAgent) {
-        setHistory(prev => [...prev, rootAgent]);
-    }
-  };
-
-  const handleUndo = () => {
-    if (history.length === 0) return;
-    const previous = history[history.length - 1];
-    const newHistory = history.slice(0, -1);
-    
-    setHistory(newHistory);
-    setRootAgent(previous);
-    onAgentCreated(previous); // Sync with storage
-
-    // If currently selected agent doesn't exist in previous state, select root
-    if (selectedAgentId && !findAgentById(selectedAgentId, previous)) {
-        setSelectedAgentId(previous.id);
-    }
-  };
-
-  const handleDeleteNode = (nodeId: string) => {
-      if (!rootAgent) return;
-      if (nodeId === rootAgent.id) return; // Cannot delete root
-      
-      saveCheckpoint(); // Save state before delete
-
-      const newRoot = deleteNodeFromTree(nodeId, rootAgent);
-      if (newRoot) {
-          setRootAgent(newRoot);
-          onAgentCreated(newRoot);
-          if (selectedAgentId === nodeId) {
-              setSelectedAgentId(newRoot.id);
-          }
-      }
-  };
-
-  const addSubNode = (parentId: string, current: Agent, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent'): Agent => {
-    if (current.id === parentId) {
-      const newNode: Agent = {
-        id: Date.now().toString(),
-        name: type === 'group' ? `${groupMode === 'sequential' ? 'Sequential' : 'Concurrent'} Flow` : 'New Sub-Agent',
-        description: type === 'group' ? 'Executes children agents according to flow.' : 'Handles specific delegated tasks.',
-        goal: type === 'group' ? 'Manage execution flow.' : 'Assist the main agent.',
-        instructions: type === 'group' ? '' : '### AGENT OPERATING PROCEDURE\n\n1. **ROLE**: You are a specialized assistant.\n2. **TASK**: Complete delegated tasks efficiently.',
-        tools: [],
-        model: 'gemini-2.5-flash',
-        createdAt: new Date(),
-        subAgents: [],
-        type: type,
-        groupMode: groupMode
-      };
-      return {
-        ...current,
-        subAgents: [...(current.subAgents || []), newNode]
-      };
-    }
-    if (current.subAgents) {
-      return {
-        ...current,
-        subAgents: current.subAgents.map(sub => addSubNode(parentId, sub, type, groupMode))
-      };
-    }
-    return current;
-  };
-
-  const selectedAgent = rootAgent && selectedAgentId ? findAgentById(selectedAgentId, rootAgent) : null;
-
+    // --- Persistence Logic ---
   useEffect(() => {
-    if (architectMessages.length === 0 && !initialAgent) {
-      setArchitectMessages([{
-        id: 'init',
-        role: 'assistant',
-        content: "Hi! I'm your AI Architect. What kind of agent or multi-agent system would you like to build today? You can describe a simple task or a complex workflow.",
-        timestamp: Date.now()
-      }]);
-    }
-  }, [architectMessages.length, initialAgent]);
+      const loadChat = async () => {
+          const key = `architect_chat_${initialAgent?.id || 'new_draft'}`;
+          try {
+              const saved = await get<ChatMessage[]>(key);
+              if (saved && saved.length > 0) {
+                  setArchitectMessages(saved);
+                  // User requested to start with Hero Input even if session exists
+                  // setHasStarted(true); 
+              } else if (!initialAgent) {
+                  // Only reset if no saved chat AND no initial agent (fresh start)
+                  setArchitectMessages([{
+                      id: 'init',
+                      role: 'assistant',
+                      content: "Hi! I'm your AI Architect. What kind of agent or multi-agent system would you like to build today? You can describe a simple task or a complex workflow.",
+                      timestamp: Date.now()
+                  }]);
+              }
+          } catch (e) {
+              console.error("Failed to load architect chat:", e);
+          }
+      };
+      loadChat();
+  }, [initialAgent?.id]);
+
+    useEffect(() => {
+        if (architectMessages.length > 0) {
+            const key = `architect_chat_${initialAgent?.id || 'new_draft'}`;
+            set(key, architectMessages).catch(e => console.error("Failed to save chat:", e));
+        }
+    }, [architectMessages, initialAgent?.id]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -304,6 +228,112 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     setStep('review');
   };
 
+    // --- Helper Functions ---
+    const saveCheckpoint = () => {
+        if (rootAgent) {
+            setHistory(prev => [...prev, rootAgent]);
+        }
+    };
+
+    const handleUndo = () => {
+        if (history.length === 0) return;
+        const previous = history[history.length - 1];
+        setHistory(prev => prev.slice(0, -1));
+        setRootAgent(previous);
+        onAgentCreated(previous);
+        // If selected agent no longer exists, reset selection
+        // Simple check: if we can't find selectedAgentId in previous, reset to root
+        // For now, just keep selection or reset to root if needed.
+    };
+
+    const updateAgentInTree = (updatedAgent: Agent, currentRoot: Agent): Agent => {
+        if (currentRoot.id === updatedAgent.id) {
+            return updatedAgent;
+        }
+        if (currentRoot.subAgents) {
+            return {
+                ...currentRoot,
+                subAgents: currentRoot.subAgents.map(sub => updateAgentInTree(updatedAgent, sub))
+            };
+        }
+        return currentRoot;
+    };
+
+    const addSubNode = (parentId: string, currentRoot: Agent, type: 'agent' | 'group', groupMode?: 'sequential' | 'concurrent'): Agent => {
+        if (currentRoot.id === parentId) {
+            const newSub: Agent = {
+                id: `${type}-${Date.now()}`,
+                name: type === 'group' ? 'New Group' : 'New Agent',
+                description: 'Description...',
+                goal: 'Goal...',
+                instructions: 'Instructions...',
+                tools: [],
+                model: 'gemini-2.5-flash',
+                createdAt: new Date(),
+                subAgents: [],
+                type: type,
+                groupMode: groupMode
+            };
+            return {
+                ...currentRoot,
+                subAgents: [...(currentRoot.subAgents || []), newSub]
+            };
+        }
+        if (currentRoot.subAgents) {
+            return {
+                ...currentRoot,
+                subAgents: currentRoot.subAgents.map(sub => addSubNode(parentId, sub, type, groupMode))
+            };
+        }
+        return currentRoot;
+    };
+
+    const deleteNodeFromTree = (nodeId: string, currentRoot: Agent): Agent | null => {
+        if (currentRoot.id === nodeId) return null; // Can't delete root this way usually, or handled by caller
+
+        if (currentRoot.subAgents) {
+            const filtered = currentRoot.subAgents
+                .map(sub => deleteNodeFromTree(nodeId, sub))
+                .filter((sub): sub is Agent => sub !== null);
+
+            return {
+                ...currentRoot,
+                subAgents: filtered
+            };
+        }
+        return currentRoot;
+    };
+
+    const handleDeleteNode = (nodeId: string) => {
+        if (!rootAgent) return;
+        if (nodeId === rootAgent.id) return; // Prevent deleting root
+
+        saveCheckpoint();
+        const newRoot = deleteNodeFromTree(nodeId, rootAgent);
+        if (newRoot) {
+            setRootAgent(newRoot);
+            onAgentCreated(newRoot);
+            if (selectedAgentId === nodeId) {
+                setSelectedAgentId(newRoot.id);
+            }
+        }
+    };
+
+    // Derived state for selected agent
+    const findAgent = (id: string | null, current: Agent | null): Agent | null => {
+        if (!id || !current) return null;
+        if (current.id === id) return current;
+        if (current.subAgents) {
+            for (const sub of current.subAgents) {
+                const found = findAgent(id, sub);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+
+    const selectedAgent = findAgent(selectedAgentId, rootAgent);
+
   const handleUpdateSelectedAgent = (updates: Partial<Agent>) => {
     if (!selectedAgent || !rootAgent) return;
     const updated = { ...selectedAgent, ...updates };
@@ -338,18 +368,72 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     onAgentCreated(newRoot);
   };
 
+    const handleConsultArchitect = () => {
+        if (!rootAgent) return;
+
+        // Create a hidden system message with the current state
+        const stateMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user', // Using user role so it's part of the conversation history for the model
+            content: `[SYSTEM UPDATE] User has manually modified the agent configuration. Current State:\n\`\`\`json\n${JSON.stringify(rootAgent, null, 2)}\n\`\`\`\nPlease acknowledge this update and wait for user instructions.`,
+            timestamp: Date.now(),
+            hidden: true
+        };
+
+        setArchitectMessages(prev => {
+            const lastMsg = prev[prev.length - 1];
+            const isLastMsgSync = lastMsg && lastMsg.content === "I've synced your manual changes. What would you like to do next?";
+
+            if (isLastMsgSync) {
+                return [...prev, stateMessage];
+            }
+
+            return [...prev, stateMessage, {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: "I've synced your manual changes. What would you like to do next?",
+                timestamp: Date.now() + 1
+            }];
+        });
+        setStep('input');
+        setHasStarted(true); // Explicitly enter chat mode when consulting
+    };
+
   const handleEnhanceInstructions = async () => {
     if (!selectedAgent || !enhancePrompt.trim()) return;
     setIsEnhancing(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: apiKey });
-        const prompt = `Rewrite AOP for Agent '${selectedAgent.name}' to be professional markdown. Current goal: ${selectedAgent.goal}. User request: ${enhancePrompt}. Current instructions: ${selectedAgent.instructions}`;
-        const result = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
-        if (result.text) {
-            handleUpdateSelectedAgent({ instructions: result.text });
+        const prompt = `Rewrite AOP for Agent '${selectedAgent.name}' to be professional markdown. 
+        
+        Current Goal: ${selectedAgent.goal}
+        User Request: ${enhancePrompt}
+        
+        Current Instructions:
+        ${selectedAgent.instructions}
+        
+        Output ONLY the new markdown instructions.`;
+
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                prompt: prompt
+            })
+        });
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (text) {
+            handleUpdateSelectedAgent({ instructions: text });
             setEnhancePrompt(''); 
         }
-    } catch (e) { console.error(e); } finally { setIsEnhancing(false); }
+    } catch (e) {
+        console.error("Enhance failed:", e);
+    } finally {
+        setIsEnhancing(false);
+    }
   };
 
   // --- Real Orchestration Testing Logic ---
@@ -497,6 +581,18 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       }
   };
 
+    const handleLocationSelect = (location: string) => {
+        setTestInput(prev => `${prev} ${location}`.trim());
+        setShowLocationFinder(false);
+        testInputRef.current?.focus();
+    };
+
+    const handleModeSelect = (mode: string) => {
+        setTestInput(prev => `${prev} via ${mode}`.trim());
+        setShowModeSelector(false);
+        testInputRef.current?.focus();
+    };
+
   // --- RENDERERS ---
 
   const renderToolSelector = () => (
@@ -618,7 +714,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const renderArchitectChat = () => (
     <div className="flex flex-col h-full bg-slate-900 animate-in fade-in duration-300">
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-             {architectMessages.map((msg) => (
+              {architectMessages.filter(m => !m.hidden).map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] rounded-2xl px-5 py-3.5 shadow-md ${
                         msg.role === 'user' 
@@ -696,6 +792,13 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 >
                     Back to Chat
                 </button>
+                  <button
+                      onClick={handleConsultArchitect}
+                      className="px-3 py-1.5 bg-brand-900/30 text-brand-300 text-xs rounded border border-brand-500/30 hover:bg-brand-900/50 hover:text-brand-200 flex items-center gap-1.5 transition-colors"
+                  >
+                      <MessageSquarePlus size={12} />
+                      Consult Architect
+                  </button>
                 {history.length > 0 && (
                     <button 
                         onClick={handleUndo}
@@ -1002,6 +1105,43 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         </div>
         <div className="p-4 bg-slate-900 border-t border-slate-800">
             <div className="max-w-4xl mx-auto relative">
+                  {showLocationFinder && (
+                      <LocationFinder
+                          onSelect={handleLocationSelect}
+                          onClose={() => setShowLocationFinder(false)}
+                      />
+                  )}
+                  {showModeSelector && (
+                      <TransportModeSelector
+                          onSelect={handleModeSelect}
+                          onClose={() => setShowModeSelector(false)}
+                      />
+                  )}
+
+                  {/* Conditional Trip Planner Tools */}
+                  {rootAgent && (function checkTripPlanner(agent: Agent): boolean {
+                      if (agent.tools?.includes('nsw_trip_planner')) return true;
+                      if (agent.subAgents) return agent.subAgents.some(checkTripPlanner);
+                      return false;
+                  })(rootAgent) && (
+                          <div className="absolute left-4 top-3.5 flex items-center gap-2 z-10">
+                              <button
+                                  onClick={() => setShowLocationFinder(!showLocationFinder)}
+                                  className="p-1.5 text-slate-400 hover:text-brand-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+                                  title="Find Location"
+                              >
+                                  <MapPin size={18} />
+                              </button>
+                              <button
+                                  onClick={() => setShowModeSelector(!showModeSelector)}
+                                  className="p-1.5 text-slate-400 hover:text-brand-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+                                  title="Select Transport Mode"
+                              >
+                                  <Train size={18} />
+                              </button>
+                          </div>
+                      )}
+
                 <input
                     ref={testInputRef}
                     type="text"
@@ -1010,7 +1150,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                     onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleTestSendMessage()}
                     placeholder={`Message ${rootAgent?.name}...`}
                     disabled={isTyping}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-full pl-6 pr-14 py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-lg disabled:opacity-50 transition-all"
+                      className={`w-full bg-slate-800 border border-slate-700 text-white rounded-full py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-lg disabled:opacity-50 transition-all ${rootAgent && (function check(a: Agent): boolean { return a.tools?.includes('nsw_trip_planner') || (a.subAgents?.some(check) ?? false); })(rootAgent)
+                          ? 'pl-24 pr-14'
+                          : 'pl-6 pr-14'
+                          }`}
                 />
                 <button 
                     onClick={() => handleTestSendMessage()}

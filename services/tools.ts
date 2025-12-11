@@ -207,6 +207,185 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
         created_at: new Date().toISOString()
       });
     }
+  },
+  nsw_trains_realtime: {
+    id: 'nsw_trains_realtime',
+    name: 'NSW Trains Realtime',
+    description: 'Get real-time trip updates for Sydney Trains network.',
+    category: 'Data Retrieval',
+    functionDeclaration: {
+      name: 'nsw_trains_realtime',
+      description: 'Fetches real-time trip updates for Sydney Trains.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {}, // No params needed for the full feed
+      },
+    },
+    executable: async () => {
+      try {
+        const response = await fetch('/api/transport/sydneytrains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          return `Error fetching train data: ${err.error || response.statusText}`;
+        }
+        const data = await response.json();
+        // The feed might be huge. We should probably summarize it or let the agent handle it.
+        // For now, let's return a summary or the first few entries if it's too big?
+        // Or just return it and rely on the agent to parse.
+        // Warning: The raw feed can be very large (MBs).
+        // Let's truncate if it's too big or just return the entities count and a sample?
+        // The user wants "real time trip updates".
+        // Let's return the full data but maybe warn the agent if it's truncated?
+        // Actually, for a demo, let's just return it. The Orchestrator might truncate it if it's too large for context.
+        return JSON.stringify(data).substring(0, 50000); // Hard cap to prevent browser crash / context explosion
+      } catch (e) {
+        return `Error: ${e}`;
+      }
+    }
+  },
+  nsw_metro_realtime: {
+    id: 'nsw_metro_realtime',
+    name: 'NSW Metro Realtime',
+    description: 'Get real-time trip updates for Sydney Metro network.',
+    category: 'Data Retrieval',
+    functionDeclaration: {
+      name: 'nsw_metro_realtime',
+      description: 'Fetches real-time trip updates for Sydney Metro.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {},
+      },
+    },
+    executable: async () => {
+      try {
+        const response = await fetch('/api/transport/metro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          return `Error fetching metro data: ${err.error || response.statusText}`;
+        }
+        const data = await response.json();
+        return JSON.stringify(data).substring(0, 50000);
+      } catch (e) {
+        return `Error: ${e}`;
+      }
+    }
+  },
+  nsw_trip_planner: {
+    id: 'nsw_trip_planner',
+    name: 'NSW Trip Planner',
+    description: 'Plan a trip using NSW public transport (Trains, Metro, Buses, Ferries, etc.).',
+    category: 'Data Retrieval',
+    functionDeclaration: {
+      name: 'nsw_trip_planner',
+      description: 'Plans a trip between two locations using specified transport modes.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          origin: { type: Type.STRING, description: 'Starting location (e.g., "Central Station", "Bondi Beach").' },
+          destination: { type: Type.STRING, description: 'Destination location (e.g., "Manly Wharf", "Parramatta").' },
+          mode: {
+            type: Type.STRING,
+            description: 'Preferred mode of transport. Options: "train", "metro", "bus", "ferry", "lightrail", "coach". Defaults to any.',
+            enum: ['train', 'metro', 'bus', 'ferry', 'lightrail', 'coach', 'any']
+          }
+        },
+        required: ['origin', 'destination']
+      },
+    },
+    executable: async ({ origin, destination, mode }: { origin: string, destination: string, mode?: string }) => {
+      try {
+        // Helper to find a stop ID
+        const findStop = async (query: string) => {
+          const params = new URLSearchParams({
+            type_sf: 'any',
+            name_sf: query,
+            TfNSWSF: 'true'
+          });
+          const res = await fetch(`/api/transport/planner/stop_finder?${params}`);
+          if (!res.ok) throw new Error(`Stop Finder failed for "${query}"`);
+          const data = await res.json();
+          return data.locations?.[0]?.id; // Return best match ID
+        };
+
+        // 1. Resolve Origin
+        const originId = await findStop(origin);
+        if (!originId) return `Could not find location: "${origin}"`;
+
+        // 2. Resolve Destination
+        const destId = await findStop(destination);
+        if (!destId) return `Could not find location: "${destination}"`;
+
+        // 3. Plan Trip
+        const tripParams = new URLSearchParams({
+          type_origin: 'any',
+          name_origin: originId,
+          type_destination: 'any',
+          name_destination: destId,
+          calcNumberOfTrips: '3', // Limit to 3 options
+          depArrMacro: 'dep', // Depart after...
+          itdDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''), // YYYYMMDD
+          itdTime: new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' }).replace(':', ''), // HHMM
+          TfNSWTR: 'true'
+        });
+
+        // Handle Mode Filtering (Exclude others)
+        // Modes: 1=Train, 2=Metro, 4=LightRail, 5=Bus, 7=Coach, 9=Ferry, 11=SchoolBus
+        if (mode && mode !== 'any') {
+          tripParams.set('excludedMeans', 'checkbox');
+          const modeMap: Record<string, string> = {
+            'train': '1', 'metro': '2', 'lightrail': '4', 'bus': '5', 'coach': '7', 'ferry': '9'
+          };
+          const targetId = modeMap[mode.toLowerCase()];
+
+          if (targetId) {
+            // Exclude everything EXCEPT the target
+            Object.values(modeMap).forEach(id => {
+              if (id !== targetId) tripParams.append(`exclMOT_${id}`, '1');
+            });
+          }
+        }
+
+        const tripRes = await fetch(`/api/transport/planner/trip?${tripParams}`);
+        if (!tripRes.ok) {
+          const err = await tripRes.json();
+          return `Trip Planner Error: ${JSON.stringify(err)}`;
+        }
+
+        const tripData = await tripRes.json();
+
+        // Simplify Output for Agent
+        const journeys = tripData.journeys?.map((j: any, i: number) => {
+          const legs = j.legs?.map((leg: any) => {
+            const transport = leg.transportation;
+            const modeName = transport?.product?.name || transport?.name || 'Walk';
+            const origin = leg.origin?.name || 'Unknown';
+            const dest = leg.destination?.name || 'Unknown';
+            const startTime = leg.origin?.departureTimeEstimated || leg.origin?.departureTimePlanned;
+            const endTime = leg.destination?.arrivalTimeEstimated || leg.destination?.arrivalTimePlanned;
+
+            // Format times to HH:MM
+            const formatTime = (t: string) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '?';
+
+            return `${modeName} from ${origin} (${formatTime(startTime)}) to ${dest} (${formatTime(endTime)})`;
+          }).join('\n    ↓\n  ');
+
+          const totalDuration = Math.round((new Date(j.legs[j.legs.length - 1].destination.arrivalTimePlanned).getTime() - new Date(j.legs[0].origin.departureTimePlanned).getTime()) / 60000);
+
+          return `Option ${i + 1} (${totalDuration} min):\n  ${legs}`;
+        }).join('\n\n');
+
+        return journeys || 'No journeys found.';
+
+      } catch (e: any) {
+        return `Error planning trip: ${e.message}`;
+      }
+    }
   }
 };
 

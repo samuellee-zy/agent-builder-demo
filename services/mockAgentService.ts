@@ -169,7 +169,7 @@ INSTRUCTIONS:
    - Use 'veo-3.1-fast-generate-001' ONLY for agents specifically tasked with creating videos.
    - Use 'imagen-4.0-generate-001' OR 'imagen-4.0-fast-generate-001' ONLY for agents specifically tasked with creating photorealistic images.
    - Use 'gemini-2.5-flash-image' for general image editing or creation tasks.
-   - Use 'gemini-3-pro-preview' for complex reasoning or coding.
+   - Use 'gemini-3-pro-preview' (NOT 'gemini-3-pro') for complex reasoning or coding.
    - Use 'gemini-flash-lite-latest' for simple, high-volume text tasks.
 6. **Operating Procedures (CRITICAL)**: You MUST generate detailed markdown 'instructions' for each agent following this EXACT format:
 

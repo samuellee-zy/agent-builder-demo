@@ -38,6 +38,14 @@
         color: #f8fafc; /* slate-50 */
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
         font-size: 1rem; /* Inherit new base size */
+        height: 100%;
+        overflow: hidden; /* Prevent global scroll */
+        overscroll-behavior: none; /* Prevent elastic bounce */
+      }
+      html {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
       }
       
       /* Accessibility Hack: Override Tailwind's fixed pixel classes to use rems so they scale with root */
