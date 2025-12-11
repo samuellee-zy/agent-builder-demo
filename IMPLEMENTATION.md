@@ -2,9 +2,9 @@
 # Agent Builder - Implementation Reference
 
 ## Project Overview
-**Agent Builder** is a production-grade, client-side React application for designing, building, and orchestrating Multi-Agent AI Systems using the Google Gemini ecosystem. 
+**Agent Builder** is a production-grade, **Client-Server** web application for designing, building, and orchestrating Multi-Agent AI Systems using the Google Gemini ecosystem. 
 
-It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomposes user requests and delegates tasks to specialized "Sub-Agents" or execution groups (Sequential/Concurrent). The application runs entirely in the browser, leveraging `@google/genai` for intelligence and `localStorage` for persistence.
+It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomposes user requests and delegates tasks to specialized "Sub-Agents". The application features a **React Frontend** for the UI and orchestration engine, and a **Node.js Backend** for secure API proxying and Vertex AI integration.
 
 ---
 
@@ -60,6 +60,7 @@ The runtime "Brain" running in the browser.
   - **Veo 3.1 (Video):** Implements **Long-Running Operation (LRO)** polling via `predictLongRunning` and `fetchPredictOperation`.
     - **Recursive Response Parsing:** Uses a robust recursive search to locate video data (Base64) anywhere within the complex, nested JSON response from Vertex AI.
     - **Image-to-Video:** Supports generating videos from reference images by passing the image context explicitly to the backend.
+    - **Exponential Backoff:** Polling starts at 5s and increases by 1.5x (capped at 60s) to optimize for both fast generation and long-running jobs.
   - **Imagen (Image):** returns Base64 data (stripped in history, rendered in UI).
   - **Specialized Handlers:** Detects `veo-*` and `imagen-*` models and routes them to `generateVideos` and `generateImages` APIs respectively, bypassing the default `generateContent` loop.
 - **Limitations:** Detects conflicts between Function Calling and Google Search Grounding (which cannot be mixed on some models) and prioritizes functions for delegation.
@@ -108,10 +109,9 @@ A centralized observability dashboard for analyzing agent performance in the wil
 ### Deployment Architecture
 The application uses a **Multi-Stage Docker Build** to optimize image size and security:
 1.  **Build Stage (`node:18-alpine`)**: Installs dependencies and compiles the React application (`npm run build`).
-2.  **Production Stage (`nginx:alpine`)**: Copies the compiled static assets (`dist/`) to the Nginx web root.
-    - **Nginx Configuration**: A custom `nginx.conf` handles Client-Side Routing (SPA) by redirecting all 404s to `index.html`.
+2.  **Production Stage (`node:18-alpine`)**: Runs the Node.js backend (`server.js`) which serves the static assets and handles API requests.
     - **Port**: Exposes port `8080` to comply with Cloud Run requirements.
-    - **Runtime Injection**: An `env.sh` script runs at container startup to inject the `API_KEY` environment variable into a `env-config.js` file, allowing the browser to access Cloud Run configuration.
+    - **Authentication**: Uses **Application Default Credentials (ADC)** via the Cloud Run Service Account. No API keys are needed.
 
 - **`types.ts`**: Source of Truth. Defines `Agent`, `Tool`, `ChatMessage`, `EvaluationReport`, `WatchtowerAnalysis`, etc.
 - **`App.tsx`**: Application Root. Manages routing, global agent state, and LocalStorage persistence.
@@ -127,10 +127,9 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **`services/mockAgentService.ts`**: Architect backend (Chat & JSON Gen).
 - **`services/tools.ts`**: Registry of executable tools.
 - **`services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
-- **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Nginx Serve).
-- **`nginx.conf`**: Web server configuration for SPA routing and gzip compression.
-- **`env.sh`**: Entrypoint script for injecting environment variables at runtime.
-- **`services/config.ts`**: Helper to retrieve API keys from either `window.ENV` (Docker) or `process.env` (Local).
+- **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Node.js Serve).
+- **`server.js`**: Node.js/Express backend for API proxying and static file serving.
+- **`services/config.ts`**: Helper to retrieve API keys (Deprecated/Removed in favor of backend proxy).
 
 ### 2. Backend (Node.js / Express)
 - **Runtime**: Node.js 18+
