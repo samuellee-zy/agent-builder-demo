@@ -99,7 +99,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col h-full bg-slate-900 relative shadow-2xl overflow-hidden">
         {/* Mobile Header */}
-        <div className="md:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900 shrink-0 z-30">
+        <div className="lg:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900 shrink-0 z-30">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -ml-2 text-slate-400 hover:text-white"

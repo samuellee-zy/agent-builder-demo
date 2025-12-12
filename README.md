@@ -14,8 +14,9 @@
 *   **Smart Patterns:** Automatically detects workflows (Sequential vs Concurrent).
 *   **Robust Generation:** Multi-model strategy for reliable architecture generation.
 
-### 📱 Mobile Optimized
+### 📱 Mobile & Tablet Optimized
 *   **Responsive Design:** Fully functional on mobile devices with touch-friendly interfaces.
+*   **Tablet Ready:** Optimized for iPad Mini and Foldable devices (768px+) with smart "drawer-mode" layouts.
 *   **Adaptive Layouts:** Smart stacking for Agent Registry and Tools Library on small screens.
 *   **Touch Gestures:** Native panning and zooming for the Agent Diagram.
 *   **Mobile Inspector:** Full-screen configuration panels for easy editing on the go.

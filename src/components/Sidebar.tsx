@@ -33,16 +33,16 @@ export const Sidebar: React.FC<SidebarProps & { isOpen: boolean; onClose: () => 
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-200"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar Container */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full flex-shrink-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full flex-shrink-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0 md:z-auto
+        lg:relative lg:translate-x-0 lg:z-auto
       `}>
         <div className="p-6 flex items-center gap-3 border-b border-slate-800">
           <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-brand-500/20">

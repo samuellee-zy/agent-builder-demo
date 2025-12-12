@@ -47,6 +47,10 @@ A state-machine driven component managing the lifecycle of an agent.
   - **Touch-Friendly:** Chat input buttons ("Send", "Attach") have enlarged touch targets (>44px) for easier interaction on mobile devices.
   - **Mobile Inspector:** The "Agent Config" panel slides in as a full-screen overlay on mobile, toggleable via a "Config" button, ensuring it doesn't cramp the diagram view.
   - **Touch Gestures:** The diagram canvas supports native touch scrolling and panning.
+- **Tablet & Foldable Strategy (Mobile-Plus):**
+  - **Breakpoint Shift:** The application treats devices between **768px and 1023px** (e.g., iPad Mini, Unfolded Foldables) as "Mobile-Plus".
+  - **Hidden Sidebar:** The navigation sidebar remains in "drawer mode" (hidden by default) on these devices to maximize the main content area.
+  - **Overlay Inspector:** The Agent Inspector remains an overlay (slide-over) rather than a side-panel, ensuring the diagram has enough width to be usable.
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
   - Instead of random timestamps, new test sessions are assigned strict sequential IDs (1, 2, 3...).

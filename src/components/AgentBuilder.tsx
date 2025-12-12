@@ -635,17 +635,17 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
             
             /* Mobile: Bottom Sheet */
             fixed bottom-0 left-0 right-0 rounded-t-2xl border-t
-            md:absolute md:bottom-12 md:right-0 md:w-64 md:rounded-xl md:border
+            lg:absolute lg:bottom-12 lg:right-0 lg:w-64 lg:rounded-xl lg:border
         `}>
               <div className="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
                   <h4 className="text-xs font-bold text-slate-400 uppercase">Available Tools</h4>
-                  <button onClick={() => setShowToolSelector(false)} className="md:hidden text-slate-400">
+                  <button onClick={() => setShowToolSelector(false)} className="lg:hidden text-slate-400">
                       <ChevronDown size={16} />
                   </button>
               </div>
-              <div className="max-h-[50vh] md:max-h-64 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+              <div className="max-h-[50vh] lg:max-h-64 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                   {AVAILABLE_TOOLS_LIST.map(tool => (
-                      <div key={tool.id} className="px-3 py-3 md:py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-3 md:gap-2 border-b border-slate-700/50 last:border-0 md:border-0">
+                      <div key={tool.id} className="px-3 py-3 lg:py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-3 lg:gap-2 border-b border-slate-700/50 last:border-0 lg:border-0">
                           <Terminal size={16} className="text-brand-400 flex-shrink-0" />
                           <div className="min-w-0">
                               <p className="text-sm text-slate-200 font-medium">{tool.name}</p>
@@ -882,7 +882,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
              </div>
 
               {/* Mobile: Edit Config Button */}
-              <div className="absolute top-4 right-4 z-20 md:hidden">
+              <div className="absolute top-4 right-4 z-20 lg:hidden">
                   <button
                       onClick={() => setShowMobileInspector(true)}
                       className="px-3 py-1.5 bg-slate-800 text-white text-xs rounded border border-slate-700 shadow-lg flex items-center gap-2"
@@ -910,10 +910,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 )}
              </div>
 
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full px-4 md:w-auto md:px-0">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full px-4 lg:w-auto lg:px-0">
                 <button 
                     onClick={handleStartTest}
-                      className="w-full md:w-auto flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-full font-bold shadow-xl shadow-brand-500/20 transition-all hover:scale-105"
+                      className="w-full lg:w-auto flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-full font-bold shadow-xl shadow-brand-500/20 transition-all hover:scale-105"
                 >
                     <Play size={18} />
                     Deploy & Test System
@@ -924,8 +924,8 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         {/* Right: Inspector Panel */}
           <div className={`
             bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl z-40 flex-shrink-0
-            fixed inset-0 w-full md:static md:w-96 md:inset-auto transition-transform duration-300
-            ${showMobileInspector ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+            fixed inset-0 w-full lg:static lg:w-96 lg:inset-auto transition-transform duration-300
+            ${showMobileInspector ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
             {selectedAgent ? (
                 <>
@@ -936,7 +936,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                         </div>
                           <button
                               onClick={() => setShowMobileInspector(false)}
-                              className="md:hidden p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg"
+                              className="lg:hidden p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg"
                           >
                               <X size={20} />
                           </button>

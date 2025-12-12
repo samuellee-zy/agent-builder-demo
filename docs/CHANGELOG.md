@@ -4,6 +4,18 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 13/12/2025 - Tablet & Foldable Optimization
+- **Tablet & Foldable Support**:
+  - **Global Breakpoints**: Shifted the "Desktop" breakpoint from `md` (768px) to `lg` (1024px) to better support iPad Mini and unfolded foldable devices.
+  - **"Mobile-Plus" Strategy**: Devices between 768px and 1023px now use a hybrid layout with hidden sidebars (drawer mode) to maximize content area.
+- **Agent Registry Layout Fix**:
+  - **Slide-Over Inspector**: Resolved an issue where the Agent Config panel would overlap the architecture diagram on tablets. It now behaves as a slide-over overlay on screens < 1024px, matching the Visual Builder's pattern.
+- **Agent Builder**:
+  - **Tablet Inspector**: The Inspector panel is now an overlay on tablets, toggleable via a "Config" button.
+  - **Delete Button**: Fixed visibility of the "Delete Agent" button on touch devices.
+- **Watchtower**:
+  - **Responsive Grid**: Tuned the dashboard grid to use 2 columns on tablets (`md:grid-cols-2`) for better spacing.
+
 ### 13/12/2025 - Mobile Optimization & Polish
 - **Agent Registry Mobile Experience**:
   - **Responsive Layout**: Implemented a master-detail stack layout for mobile. The sidebar (tabs) and content areas now stack vertically or toggle appropriately, ensuring full accessibility on small screens.

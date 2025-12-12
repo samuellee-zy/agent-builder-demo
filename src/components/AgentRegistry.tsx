@@ -661,9 +661,9 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
 
              {/* Content Switcher */}
              {activeTab === 'architecture' && (
-                    <div className="flex-1 flex overflow-hidden relative min-h-[400px] md:min-h-0">
-                        <div className="flex-1 h-full overflow-auto p-4 md:p-10 flex items-center justify-center bg-slate-950/50 touch-pan-x touch-pan-y">
-                            <div className="transform scale-75 md:scale-90 origin-center">
+                    <div className="flex-1 flex overflow-hidden relative min-h-[400px] lg:min-h-0">
+                        <div className="flex-1 h-full overflow-auto p-4 lg:p-10 flex items-center justify-center bg-slate-950/50 touch-pan-x touch-pan-y">
+                            <div className="transform scale-75 lg:scale-90 origin-center">
                             <AgentDiagram 
                                 agent={selectedAgent} 
                                 selectedId={selectedNodeId} 
@@ -672,11 +672,19 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                             />
                         </div>
                     </div>
-                        {selectedNodeId && (
-                            <div className="absolute inset-0 z-50 md:static md:z-auto">
-                                {renderNodeDetails()}
-                            </div>
-                        )}
+                        <div className={`
+                            fixed inset-y-0 right-0 w-96 bg-slate-900 border-l border-slate-800 shadow-2xl z-50 transform transition-transform duration-300
+                            lg:static lg:transform-none lg:z-auto
+                            ${selectedNodeId ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+                            ${!selectedNodeId && 'lg:hidden'} 
+                        `}>
+                            {/* Note: We need to handle the case where selectedNodeId is null but on Desktop we might want to show something or just hide it? 
+                                In Builder, it shows "Select an agent". 
+                                Here, renderNodeDetails returns null if no selectedNode.
+                                Let's wrap renderNodeDetails content in this div.
+                            */}
+                            {selectedNodeId && renderNodeDetails()}
+                        </div>
                  </div>
              )}
 

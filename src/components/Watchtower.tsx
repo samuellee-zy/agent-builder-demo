@@ -136,7 +136,7 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
             </div>
 
             {/* Live Pulse Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
                     <div className="flex items-center gap-2 text-slate-400 mb-2">
                         <Clock size={16} />
@@ -177,7 +177,7 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
                             <Search size={18} className="text-blue-400" />
                             Detected Intents
                         </h2>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {analysis.intents.map(intent => (
                                 <div key={intent.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 hover:bg-slate-800 transition-colors">
                                     <div className="flex justify-between items-start mb-2">

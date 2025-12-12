@@ -205,7 +205,7 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
             {!readOnly && depth > 0 && (
                 <button
                     onClick={handleDeleteClick}
-                    className="absolute -top-2 -right-2 p-1 bg-slate-800 hover:bg-red-900/50 text-slate-500 hover:text-red-400 rounded-full border border-slate-700 transition-colors z-30 opacity-0 group-hover:opacity-100"
+              className="absolute -top-2 -right-2 p-1 bg-slate-800 hover:bg-red-900/50 text-slate-500 hover:text-red-400 rounded-full border border-slate-700 transition-colors z-30 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                     title="Delete Agent"
                 >
                     <Trash2 size={12} />
