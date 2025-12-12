@@ -4,6 +4,31 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12/12/2025 - Report Formatter & Mock Tester
+- **Report Formatter Tool**:
+  - **New Tool**: Added `publish_report` utility that allows agents to generate structured, rich-text reports.
+  - **Rich Text Rendering**: Integrated `react-markdown` and `remark-gfm` to render tables, lists, and code blocks beautifully within the chat interface.
+  - **UI Component**: Implemented a distinct "Report Card" UI for these messages, separating them from standard conversational text.
+- **Mock Tester Enhancements**:
+  - **Rich Text Preview**: Updated `ToolsLibrary.tsx` to render `publish_report` outputs as fully styled Markdown cards instead of raw JSON.
+  - **Markdown Editor**: Replaced the standard input field with a multi-line Textarea for the `content` parameter, making it easier to test complex report generation.
+- **Dependencies**:
+  - Added `react-markdown`, `remark-gfm`, and `@tailwindcss/typography`.
+
+### 12/12/2025 - Session Separation & Model Selector
+- **Session Separation**:
+  - **Dynamic Draft IDs**: Implemented a `draftId` system in `App.tsx`. Every "New Agent" action generates a unique UUID, ensuring a completely fresh Architect Chat session.
+  - **History Migration**: Automatically migrates chat history from the temporary `draftId` to the permanent `agentId` upon agent creation.
+  - **Fix**: Resolved issue where previous "New Agent" sessions would leak into new ones due to a shared static storage key.
+- **Architect Model Selector**:
+  - **UI**: Added a dropdown in the "Hero Input" area allowing users to choose the AI Architect's model.
+  - **Options**:
+    - `gemini-2.5-flash` (Default): Fast and efficient.
+    - `gemini-3-pro-preview`: Advanced reasoning for complex system designs.
+  - **Removed**: Deprecated `gemini-1.5-pro` option.
+- **Bug Fixes**:
+  - **Model Parameter**: Fixed a bug in `AgentBuilder.tsx` where the selected model was not being passed to the backend service.
+
 ### 12/12/2025 - Architect Persistence & Enhancement Workflow
 - **Architect Chat Persistence**:
   - Implemented **IndexedDB Storage** (via `idb-keyval`) to persist AI Architect chat sessions across page reloads.

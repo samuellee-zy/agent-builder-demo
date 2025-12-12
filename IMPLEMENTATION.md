@@ -12,7 +12,7 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
 
 ### 1. AI Architect (Meta-Agent)
 - **Role**: Designs the multi-agent system based on user requirements.
-- **Model**: `gemini-2.5-flash` (via Vertex AI Global Endpoint).
+- **Model**: Configurable via UI. Defaults to `gemini-2.5-flash` (Fast), with option for `gemini-3-pro-preview` (Reasoning).
 - **Capabilities**:
   - Conversational interface for gathering requirements.
   - Generates a JSON configuration for the agent system.
@@ -28,12 +28,13 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
 ### 2. The Visual Builder (`components/AgentBuilder.tsx`)
 A state-machine driven component managing the lifecycle of an agent.
 - **State Machine:** Input -> Building -> Review -> Testing.
-- **Persistence (IndexedDB):** 
   - Uses `idb-keyval` to store the **Architect Chat History** locally.
-  - Keys are scoped by Agent ID (`architect_chat_${id}`), ensuring conversations are tied to specific drafts.
+  - **Session Separation (Drafts):**
+    - **New Agents**: Assigned a unique UUID (`draftId`) on creation. This ensures a blank slate for every "New Agent" action, preventing history leaks from previous sessions.
+    - **Migration**: Upon successful build, the chat history is automatically migrated from `architect_chat_${draftId}` to `architect_chat_${agentId}`.
   - **UX Pattern:** On load, the "Hero Input" is shown to provide a clean entry point, but the history is silently loaded in the background. Interacting with the input or clicking "Consult Architect" restores the full session.
 - **Enhance Workflow:**
-  - Integrated **"Enhance"** button that sends the current Agent Instructions + User Feedback to `gemini-2.5-flash`.
+  - Integrated **"Enhance"** button that sends the current Agent Instructions + User Feedback to `gemini-2.5-flash` (Fixed Model).
   - Returns a rewritten, professional Markdown version of the instructions.
 - **Consult Architect (State Sync):**
   - Allows users to jump from the Visual Diagram back to the Chat.
@@ -113,6 +114,8 @@ A centralized observability dashboard for analyzing agent performance in the wil
   - **Tooling:** Suggests new tools if users ask for unsupported capabilities.
   - **Behavior:** Suggests instruction tweaks if the agent is rude or verbose.
 
+
+
 ---
 
 ## 📂 File Structure & Responsibilities
@@ -140,7 +143,7 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **`services/evaluation.ts`**: Evaluation logic (Scenario Gen, Sim, Scoring).
 - **`services/watchtower.ts`**: Batch analysis service for intent clustering and insights.
 - **`services/mockAgentService.ts`**: Architect backend (Chat & JSON Gen).
-- **`services/tools.ts`**: Registry of executable tools.
+- **`services/tools.ts`**: Registry of executable tools. See **[TOOLS.md](./TOOLS.md)** for detailed documentation.
 - **`services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
 - **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Node.js Serve).
 - **`server.js`**: Node.js/Express backend for API proxying and static file serving.
@@ -172,7 +175,9 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 
 ---
 
-## 🛠 Tools Registry (`services/tools.ts`)
+## 🛠 Tools Registry
+
+For a comprehensive list of all available tools, including their parameters and usage, please refer to **[TOOLS.md](./TOOLS.md)**.
 
 | ID | Name | Category | Description |
 |----|------|----------|-------------|
@@ -187,6 +192,7 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 | `nsw_trains_realtime` | NSW Trains | Transport | Real-time train positions & delays (GTFS). |
 | `nsw_metro_realtime` | NSW Metro | Transport | Real-time metro positions (GTFS). |
 | `nsw_trip_planner` | Trip Planner | Transport | Multimodal route planning (Train, Metro, Ferry, etc). |
+| `publish_report` | Publish Report | Utility | Generates a rich-text Markdown report card. |
 
 ---
 

@@ -4,6 +4,8 @@ import { Tool } from '../types';
 import { LocationAutocomplete } from './LocationAutocomplete';
 import { ModeDropdown } from './ModeDropdown';
 import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight, MapPin, Train } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export const ToolsLibrary: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
@@ -171,6 +173,22 @@ export const ToolsLibrary: React.FC = () => {
                                               }
                                           }
 
+
+                                          // Custom rendering for Publish Report
+                                          if (selectedTool.id === 'publish_report' && key === 'content') {
+                                              return (
+                                                  <div key={key}>
+                                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key}</label>
+                                                      <textarea
+                                                          value={testParams[key] || ''}
+                                                          onChange={(e) => handleParamChange(key, e.target.value)}
+                                                          placeholder={`Enter markdown content...`}
+                                                          className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none font-mono min-h-[120px] resize-y"
+                                                      />
+                                                  </div>
+                                              );
+                                          }
+
                                           // Default rendering
                                           return (
                                               <div key={key}>
@@ -191,9 +209,38 @@ export const ToolsLibrary: React.FC = () => {
                               {executionResult && (
                                   <div className="animate-in fade-in duration-300 pt-2 border-t border-slate-800">
                                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Output Result</label>
-                                      <div className="bg-black rounded-lg p-3 font-mono text-xs text-green-400 whitespace-pre-wrap overflow-x-auto max-h-40 custom-scrollbar border border-slate-800">
-                                          {executionResult}
-                                      </div>
+                                      {selectedTool.id === 'publish_report' ? (
+                                          (() => {
+                                              try {
+                                                  const parsed = JSON.parse(executionResult);
+                                                  const data = parsed.data;
+                                                  if (!data) throw new Error("No data");
+                                                  return (
+                                                      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 shadow-lg">
+                                                          <div className="border-b border-slate-700 pb-2 mb-3">
+                                                              <h3 className="text-lg font-bold text-brand-300">{data.title}</h3>
+                                                              <p className="text-xs text-slate-400 italic">{data.summary}</p>
+                                                          </div>
+                                                          <div className="prose prose-invert prose-sm max-w-none">
+                                                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                  {data.content}
+                                                              </ReactMarkdown>
+                                                          </div>
+                                                      </div>
+                                                  );
+                                              } catch (e) {
+                                                  return (
+                                                      <div className="bg-black rounded-lg p-3 font-mono text-xs text-green-400 whitespace-pre-wrap overflow-x-auto max-h-40 custom-scrollbar border border-slate-800">
+                                                          {executionResult}
+                                                      </div>
+                                                  );
+                                              }
+                                          })()
+                                      ) : (
+                                              <div className="bg-black rounded-lg p-3 font-mono text-xs text-green-400 whitespace-pre-wrap overflow-x-auto max-h-40 custom-scrollbar border border-slate-800">
+                                                  {executionResult}
+                                              </div>
+                                      )}
                                   </div>
                               )}
                           </div>

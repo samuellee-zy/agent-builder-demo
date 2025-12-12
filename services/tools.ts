@@ -208,6 +208,33 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
       });
     }
   },
+  publish_report: {
+    id: 'publish_report',
+    name: 'Publish Report',
+    description: 'Publishes a formatted report to the user interface.',
+    category: 'Utility',
+    functionDeclaration: {
+      name: 'publish_report',
+      description: 'Publishes a structured report with markdown content.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING, description: 'The title of the report.' },
+          content: { type: Type.STRING, description: 'The main content of the report in Markdown format.' },
+          summary: { type: Type.STRING, description: 'A brief summary or executive abstract.' }
+        },
+        required: ['title', 'content', 'summary']
+      }
+    },
+    executable: async ({ title, content, summary }: { title: string, content: string, summary: string }) => {
+      // The result is returned to the agent, but the UI will intercept this tool call to render the card.
+      return JSON.stringify({
+        status: 'success',
+        message: 'Report published to UI.',
+        data: { title, content, summary }
+      });
+    }
+  },
   nsw_trains_realtime: {
     id: 'nsw_trains_realtime',
     name: 'NSW Trains Realtime',

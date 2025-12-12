@@ -6,6 +6,8 @@ import { AgentOrchestrator } from '../services/orchestrator';
 import { GoogleGenAI } from "@google/genai";
 import { AgentDiagram } from './AgentDiagram';
 import { VideoMessage } from './VideoMessage';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { LocationFinder } from './LocationFinder';
 import { TransportModeSelector } from './TransportModeSelector';
 import { get, set } from 'idb-keyval';
@@ -41,9 +43,10 @@ import {
 interface AgentBuilderProps {
   onAgentCreated: (agent: Agent) => void;
   initialAgent?: Agent; // Support reloading an existing agent
+    draftId?: string;
 }
 
-export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent }) => {
+export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent, draftId }) => {
   const [step, setStep] = useState<BuildStep>('input');
   
   // Step 1: Chat/Input State
@@ -52,6 +55,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   const [architectInput, setArchitectInput] = useState('');
   const [isArchitectTyping, setIsArchitectTyping] = useState(false);
   const [showToolSelector, setShowToolSelector] = useState(false);
+    const [architectModel, setArchitectModel] = useState('gemini-2.5-flash');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Step 2 & 3: Generation & Architect View State
@@ -92,13 +96,13 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     // --- Persistence Logic ---
   useEffect(() => {
       const loadChat = async () => {
-          const key = `architect_chat_${initialAgent?.id || 'new_draft'}`;
+          // If we have an initial agent, use its ID. Otherwise use the draftId.
+          // Fallback to 'new_draft' only if draftId is missing (shouldn't happen with new App.tsx)
+          const key = `architect_chat_${initialAgent?.id || draftId || 'new_draft'}`;
           try {
               const saved = await get<ChatMessage[]>(key);
               if (saved && saved.length > 0) {
                   setArchitectMessages(saved);
-                  // User requested to start with Hero Input even if session exists
-                  // setHasStarted(true); 
               } else if (!initialAgent) {
                   // Only reset if no saved chat AND no initial agent (fresh start)
                   setArchitectMessages([{
@@ -113,14 +117,15 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
           }
       };
       loadChat();
-  }, [initialAgent?.id]);
+  }, [initialAgent?.id, draftId]);
 
     useEffect(() => {
         if (architectMessages.length > 0) {
-            const key = `architect_chat_${initialAgent?.id || 'new_draft'}`;
+            // If rootAgent exists (created), use its ID. Else use draftId.
+            const key = `architect_chat_${rootAgent?.id || draftId || 'new_draft'}`;
             set(key, architectMessages).catch(e => console.error("Failed to save chat:", e));
         }
-    }, [architectMessages, initialAgent?.id]);
+    }, [architectMessages, rootAgent?.id, draftId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -178,7 +183,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     setIsArchitectTyping(true);
 
     try {
-      const replyText = await sendArchitectMessage(architectMessages, userMsg.content);
+        const replyText = await sendArchitectMessage(architectMessages, userMsg.content, architectModel);
       setArchitectMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -524,6 +529,23 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         },
         onToolEnd: (agent, tool, result) => {
           setActiveToolLog(null);
+            if (tool === 'publish_report') {
+                try {
+                    const parsed = JSON.parse(result);
+                    if (parsed.data) {
+                        setTestMessages(prev => [...prev, {
+                            id: Date.now().toString(),
+                            role: 'assistant',
+                            sender: agent,
+                            content: '', // Empty content as we use reportData
+                            reportData: parsed.data,
+                            timestamp: Date.now()
+                        }]);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse report data", e);
+                }
+            }
         },
         onAgentResponse: (agentName, content) => {
             // DEDUPLICATION: Check if the last message is identical to avoid "Echoing" effect
@@ -679,13 +701,28 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
               className="w-full bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 resize-none h-32 text-lg p-4"
             />
             <div className="flex justify-between items-center px-2 pb-2 mt-2 relative">
-               <button 
-                  onClick={() => setShowToolSelector(!showToolSelector)}
-                  className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-slate-700/50 relative"
-               >
-                  <Paperclip size={14} />
-                  <span>Attach Tools</span>
-               </button>
+                      <div className="flex items-center gap-2">
+                          <button
+                              onClick={() => setShowToolSelector(!showToolSelector)}
+                              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-slate-700/50 relative"
+                          >
+                              <Paperclip size={14} />
+                              <span>Attach Tools</span>
+                          </button>
+
+                          {/* Model Selector */}
+                          <div className="relative group/model">
+                              <select
+                                  value={architectModel}
+                                  onChange={(e) => setArchitectModel(e.target.value)}
+                                  className="appearance-none bg-slate-900/50 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 pr-8 hover:border-slate-500 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                              >
+                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
+                                  <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+                              </select>
+                              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                          </div>
+                      </div>
                {showToolSelector && renderToolSelector()}
 
                <button 
@@ -1032,36 +1069,48 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                             ? 'bg-brand-600 text-white rounded-tr-none' 
                             : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
                         }`}>
-                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {msg.content.split('\n').map((line, i) => {
-                                    // Image Rendering
-                                    if (line.startsWith('![')) {
-                                        const match = line.match(/!\[.*?\]\((.*?)\)/);
-                                        if (match) return <img key={i} src={match[1]} alt="Generated" className="mt-2 rounded-lg border border-slate-700 shadow-md max-w-full" />;
-                                    }
-                                    // Video Rendering via Secure Blob
-                                    if (line.includes('[Download Video]')) {
-                                       const match = line.match(/\[(.*?)\]\((.*?)\)/);
-                                       if (match) {
-                                           return <VideoMessage key={i} src={match[2]} />;
-                                       }
-                                    }
-                                    // Source Links
-                                    if (line.trim().startsWith('- [') && line.includes('](')) {
-                                        const match = line.match(/\[(.*?)\]\((.*?)\)/);
-                                        if (match) {
-                                            return (
-                                                <div key={i} className="ml-4 mt-1">
-                                                    <a href={match[2]} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline text-xs flex items-center gap-1">
-                                                        <span>•</span> {match[1]}
-                                                    </a>
-                                                </div>
-                                            )
-                                        }
-                                    }
-                                    return <div key={i}>{line}</div>
-                                })}
-                            </div>
+                            {msg.reportData ? (
+                                <div className="prose prose-invert prose-sm max-w-none p-2">
+                                    <div className="border-b border-slate-700 pb-2 mb-4">
+                                        <h3 className="text-xl font-bold text-brand-300 m-0">{msg.reportData.title}</h3>
+                                        <p className="text-slate-400 text-xs italic mt-1">{msg.reportData.summary}</p>
+                                    </div>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {msg.reportData.content}
+                                    </ReactMarkdown>
+                                </div>
+                            ) : (
+                                    <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {msg.content.split('\n').map((line, i) => {
+                                            // Image Rendering
+                                            if (line.startsWith('![')) {
+                                                const match = line.match(/!\[.*?\]\((.*?)\)/);
+                                                if (match) return <img key={i} src={match[1]} alt="Generated" className="mt-2 rounded-lg border border-slate-700 shadow-md max-w-full" />;
+                                            }
+                                            // Video Rendering via Secure Blob
+                                            if (line.includes('[Download Video]')) {
+                                                const match = line.match(/\[(.*?)\]\((.*?)\)/);
+                                                if (match) {
+                                                    return <VideoMessage key={i} src={match[2]} />;
+                                                }
+                                            }
+                                            // Source Links
+                                            if (line.trim().startsWith('- [') && line.includes('](')) {
+                                                const match = line.match(/\[(.*?)\]\((.*?)\)/);
+                                                if (match) {
+                                                    return (
+                                                        <div key={i} className="ml-4 mt-1">
+                                                            <a href={match[2]} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline text-xs flex items-center gap-1">
+                                                                <span>•</span> {match[1]}
+                                                            </a>
+                                                        </div>
+                                                    )
+                                                }
+                                            }
+                                            return <div key={i}>{line}</div>
+                                        })}
+                                    </div>
+                            )}
                         </div>
                          {/* Retry Button for Errors */}
                          {msg.content.startsWith('**Error:**') && (

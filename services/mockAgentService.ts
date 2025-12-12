@@ -68,7 +68,8 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 6, initi
 
 export const sendArchitectMessage = async (
   history: ChatMessage[], 
-  newMessage: string
+  newMessage: string,
+  model: string = 'gemini-2.5-flash'
 ): Promise<string> => {
   try {
     // const ai = new GoogleGenAI({ apiKey: getApiKey() }); // Removed GoogleGenAI instance
@@ -110,7 +111,7 @@ ${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).j
 
     // Replaced ai.chats.create and chat.sendMessage with direct generateContent call
     const result = await retryOperation(() => generateContent({
-      model: 'gemini-2.5-flash', 
+      model: model, 
       prompt: newMessage,
       systemInstruction: systemInstruction,
       history: chatHistory

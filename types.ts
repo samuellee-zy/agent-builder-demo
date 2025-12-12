@@ -38,6 +38,7 @@ export interface ChatMessage {
   latency?: number; // In milliseconds
   // For UI visualization of tool calls/thought process
   toolCalls?: { name: string; args: any; result?: any }[];
+  reportData?: { title: string; content: string; summary: string }; // For structured reports
   hidden?: boolean; // If true, not shown in UI but sent to model
 }
 

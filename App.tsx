@@ -62,7 +62,10 @@ const App: React.FC = () => {
       }
   };
 
+  const [draftId, setDraftId] = useState(() => crypto.randomUUID());
+
   const resetToNew = () => {
+    setDraftId(crypto.randomUUID());
     setSelectedAgent(undefined);
     setActiveTab('aop');
   };
@@ -112,7 +115,8 @@ const App: React.FC = () => {
         
         {activeTab === 'aop' && (
           <AgentBuilder 
-            key={selectedAgent ? selectedAgent.id : 'new-project'} 
+            key={selectedAgent ? selectedAgent.id : draftId}
+            draftId={draftId}
             onAgentCreated={handleAgentCreated} 
             initialAgent={selectedAgent}
           />
