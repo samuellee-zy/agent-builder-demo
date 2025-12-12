@@ -51,6 +51,10 @@ A state-machine driven component managing the lifecycle of an agent.
   - **Breakpoint Shift:** The application treats devices between **768px and 1023px** (e.g., iPad Mini, Unfolded Foldables) as "Mobile-Plus".
   - **Hidden Sidebar:** The navigation sidebar remains in "drawer mode" (hidden by default) on these devices to maximize the main content area.
   - **Overlay Inspector:** The Agent Inspector remains an overlay (slide-over) rather than a side-panel, ensuring the diagram has enough width to be usable.
+- **Global Dynamic Responsiveness (Fluid Design):**
+  - **Fluid CSS:** Utilizes `clamp()`, `min()`, and `max()` functions to scale UI elements linearly with the viewport width, ensuring a perfect fit on any device (320px to 1920px+).
+  - **Auto-Fit Grids:** Tools Library and Watchtower use `grid-cols-[repeat(auto-fit,minmax(...))]` to automatically reflow content without hard breakpoints.
+  - **Dynamic Diagrams:** Agent nodes scale fluidly (`140px` <-> `200px`) to prevent "squished" layouts on narrow mobile screens.
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
   - Instead of random timestamps, new test sessions are assigned strict sequential IDs (1, 2, 3...).

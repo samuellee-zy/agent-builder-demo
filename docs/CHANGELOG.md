@@ -4,6 +4,16 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 13/12/2025 - Global Dynamic Optimization (Fluid Design)
+- **Global Fluid Responsiveness**:
+  - **Fluid CSS**: Replaced fixed pixel widths with `clamp()`, `min()`, and `max()` across the entire application.
+  - **Device Agnostic**: UI now scales linearly from **320px (iPhone SE)** to **1920px+ (Desktop)**, supporting all intermediate sizes (Foldables, Tablets).
+- **Component Upgrades**:
+  - **Agent Diagram**: Nodes now dynamically resize (`140px` to `200px`) to fit narrow screens without squishing.
+  - **Agent Builder**: Header buttons adaptively hide text on mobile; Inspector panel scales fluidly (`25vw` to `500px`).
+  - **Tools Library & Watchtower**: Implemented `auto-fit` grids that automatically reflow content based on available width, eliminating hard breakpoints.
+  - **Agent Registry**: Fluid sidebar and responsive grid layouts for seamless scaling.
+
 ### 13/12/2025 - Tablet & Foldable Optimization
 - **Tablet & Foldable Support**:
   - **Global Breakpoints**: Shifted the "Desktop" breakpoint from `md` (768px) to `lg` (1024px) to better support iPad Mini and unfolded foldable devices.

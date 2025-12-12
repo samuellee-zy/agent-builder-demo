@@ -14,11 +14,11 @@
 *   **Smart Patterns:** Automatically detects workflows (Sequential vs Concurrent).
 *   **Robust Generation:** Multi-model strategy for reliable architecture generation.
 
-### 📱 Mobile & Tablet Optimized
-*   **Responsive Design:** Fully functional on mobile devices with touch-friendly interfaces.
-*   **Tablet Ready:** Optimized for iPad Mini and Foldable devices (768px+) with smart "drawer-mode" layouts.
-*   **Adaptive Layouts:** Smart stacking for Agent Registry and Tools Library on small screens.
-*   **Touch Gestures:** Native panning and zooming for the Agent Diagram.
+### 📱 Global Dynamic Responsiveness
+*   **Fluid Design:** UI scales linearly from **320px** (iPhone SE) to **1920px+** (Desktop) using `clamp()` and fluid CSS.
+*   **Device Agnostic:** Optimized for **iPhone 17 Pro/Max**, **Pixel Fold**, **Samsung Fold**, and **iPad Mini**.
+*   **Adaptive Layouts:** Auto-fit grids in Tools Library & Watchtower automatically reflow content.
+*   **Dynamic Diagrams:** Agent nodes shrink/grow (`140px` - `200px`) to fit any screen width.
 *   **Mobile Inspector:** Full-screen configuration panels for easy editing on the go.
 
 ### 🎨 Visual Studio

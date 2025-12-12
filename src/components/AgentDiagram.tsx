@@ -82,14 +82,14 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
 
   const NodeContent = () => (
       isGroup ? (
-          <div 
+      <div 
              onClick={(e) => { e.stopPropagation(); onSelect(agent); }}
              className={`
-                relative p-4 rounded-xl border-2 border-dashed transition-all duration-200 group flex flex-col items-center
+                relative p-[clamp(0.5rem,1.5vw,1rem)] rounded-xl border-2 border-dashed transition-all duration-200 group flex flex-col items-center
                 ${isSelected 
                   ? 'bg-slate-800/80 border-brand-400/50 shadow-lg shadow-brand-500/10' 
                   : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}
-                ${isSequential ? 'min-w-[200px]' : 'min-w-[300px]'}
+                ${isSequential ? 'min-w-[clamp(180px,60vw,200px)]' : 'min-w-[clamp(260px,85vw,300px)]'}
                 ${readOnly ? 'cursor-default' : 'cursor-pointer'}
                 ${nodeZIndex}
              `}
@@ -118,7 +118,7 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
               <div className={`flex ${isSequential ? 'flex-col items-center' : 'flex-row justify-center'} w-full`}>
                   {children.length > 0 ? (
                       children.map((sub, idx) => (
-                        <div key={sub.id} className={isSequential ? 'w-full flex justify-center' : 'flex flex-col items-center relative px-4 shrink-0'}>
+                        <div key={sub.id} className={isSequential ? 'w-full flex justify-center' : 'flex flex-col items-center relative px-[clamp(0.25rem,1vw,1rem)] shrink-0'}>
                             
                             {/* Tree Connectors (Concurrent) - Rendered on Wrapper */}
                             {!isSequential && children.length > 1 && (
@@ -175,7 +175,7 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
           <div 
             onClick={(e) => { e.stopPropagation(); onSelect(agent); }}
             className={`
-              relative w-48 p-3 rounded-xl border-2 transition-all duration-200 group
+              relative w-[clamp(140px,45vw,192px)] p-[clamp(0.5rem,1.5vw,0.75rem)] rounded-xl border-2 transition-all duration-200 group
               flex flex-col items-center text-center gap-2
               ${isSelected 
                 ? 'bg-brand-900/30 border-brand-500 shadow-lg shadow-brand-500/20 scale-105' 

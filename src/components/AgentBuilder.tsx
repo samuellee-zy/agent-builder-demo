@@ -34,6 +34,7 @@ import {
   MessageSquarePlus,
   Download,
   ChevronDown,
+    ChevronLeft,
   ChevronRight,
     Undo2,
     MapPin,
@@ -860,23 +861,26 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
              <div className="absolute top-4 left-4 z-20 flex gap-2">
                 <button 
                     onClick={() => setStep('input')}
-                    className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white"
+                      className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white flex items-center gap-2"
                 >
-                    Back to Chat
+                      <ChevronLeft size={14} />
+                      <span className="hidden sm:inline">Back to Chat</span>
                 </button>
                   <button
                       onClick={handleConsultArchitect}
                       className="px-3 py-1.5 bg-brand-900/30 text-brand-300 text-xs rounded border border-brand-500/30 hover:bg-brand-900/50 hover:text-brand-200 flex items-center gap-1.5 transition-colors"
                   >
-                      <MessageSquarePlus size={12} />
-                      Consult Architect
+                      <MessageSquarePlus size={14} />
+                      <span className="hidden sm:inline">Consult Architect</span>
+                      <span className="sm:hidden">Consult</span>
                   </button>
                 {history.length > 0 && (
                     <button 
                         onClick={handleUndo}
                         className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white hover:bg-slate-700 flex items-center gap-1.5 transition-colors"
                     >
-                        <Undo2 size={12} /> Revert Changes
+                          <Undo2 size={14} />
+                          <span className="hidden sm:inline">Revert Changes</span>
                     </button>
                 )}
              </div>
@@ -888,7 +892,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                       className="px-3 py-1.5 bg-slate-800 text-white text-xs rounded border border-slate-700 shadow-lg flex items-center gap-2"
                   >
                       <Settings size={14} />
-                      <span>Config</span>
+                      <span className="hidden sm:inline">Config</span>
                   </button>
               </div>
 
@@ -924,7 +928,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         {/* Right: Inspector Panel */}
           <div className={`
             bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl z-40 flex-shrink-0
-            fixed inset-0 w-full lg:static lg:w-96 lg:inset-auto transition-transform duration-300
+            fixed inset-y-0 right-0 w-[min(100vw,400px)] lg:static lg:w-[clamp(350px,25vw,500px)] lg:inset-auto transition-transform duration-300
             ${showMobileInspector ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
             {selectedAgent ? (

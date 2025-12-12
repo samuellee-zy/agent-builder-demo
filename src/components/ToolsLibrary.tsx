@@ -359,7 +359,7 @@ export const ToolsLibrary: React.FC = () => {
               {/* Grid */}
               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                   {visibleTools.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4">
                           {visibleTools.map((tool) => {
                         const isNative = tool.id === 'google_search';
                         const isSelected = selectedTool?.id === tool.id;
