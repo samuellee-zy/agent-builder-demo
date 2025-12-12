@@ -336,7 +336,7 @@ export const ToolsLibrary: React.FC = () => {
 
                   {/* Search & Filter */}
                   <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <div className="relative w-full md:w-[600px]">
+                      <div className="relative w-full md:flex-1 md:max-w-[600px]">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                           <input
                               type="text"
@@ -357,7 +357,7 @@ export const ToolsLibrary: React.FC = () => {
               </div>
 
               {/* Grid */}
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                   {visibleTools.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                           {visibleTools.map((tool) => {

@@ -244,7 +244,7 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
   );
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center touch-pan-x touch-pan-y">
       {/* 1. Sequential Connector (If Applicable) */}
       {renderSequentialConnector()}
 

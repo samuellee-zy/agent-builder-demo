@@ -543,16 +543,41 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
     );
   };
 
+    // Mobile Detail View State
+    const [showMobileDetail, setShowMobileDetail] = useState(false);
+
+    // When an agent is selected, show detail view on mobile
+    const handleAgentSelect = (agent: Agent) => {
+        setSelectedAgent(agent);
+        setShowMobileDetail(true);
+    };
+
+    const handleBackToRegistry = () => {
+        setShowMobileDetail(false);
+        setSelectedAgent(null);
+    };
+
   if (selectedAgent) {
     return (
-      <div className="flex h-full bg-slate-900">
-         {/* Detail Sidebar */}
-         <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col h-full flex-shrink-0">
+        <div className={`flex flex-col md:flex-row h-full bg-slate-900 ${showMobileDetail ? 'fixed inset-0 z-50' : ''}`}>
+            {/* Detail Sidebar - Hidden on Mobile unless it's the active view in stack (conceptually, but here we just hide it and use main content) */}
+            {/* Actually, for mobile we want the Detail Sidebar content to be part of the main scrollable view or a separate tab? 
+             The current design has a sidebar for tabs (Architecture/History/Eval) and a main content area.
+             On mobile, we should probably stack them or use a bottom nav?
+             Let's try to keep the sidebar as a top nav or collapsible.
+             For now, let's just make the sidebar full width on mobile.
+         */}
+
+            <div className={`${showMobileDetail && (!selectedSession || activeTab !== 'history') ? 'flex' : 'hidden md:flex'} w-full md:w-72 bg-slate-900 border-r border-slate-800 flex-col h-auto md:h-full flex-shrink-0 relative z-20`}>
              <div className="p-4 border-b border-slate-800 flex items-center gap-2 bg-slate-900">
-                 <button onClick={() => { setSelectedAgent(null); setSelectedSession(null); setSelectedNodeId(null); setSelectedReport(null); setActiveTab('architecture'); }} className="hover:text-brand-400 transition-colors">
+                    <button onClick={handleBackToRegistry} className="md:hidden p-2 hover:bg-slate-800 rounded-full text-slate-400 mr-2">
                      <ArrowLeft size={20} />
                  </button>
-                 <h2 className="font-bold text-white truncate text-sm">{selectedAgent.name}</h2>
+                    <button onClick={() => { setSelectedAgent(null); setSelectedSession(null); setSelectedNodeId(null); setSelectedReport(null); setActiveTab('architecture'); }} className="hidden md:block hover:text-brand-400 transition-colors">
+                        <ArrowLeft size={20} />
+                    </button>
+                    <h2 className="font-bold text-white truncate text-sm flex-1">{selectedAgent.name}</h2>
+                    {/* Mobile Tab Toggle? */}
              </div>
              
              <div className="p-5 border-b border-slate-800">
@@ -592,20 +617,53 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
              </div>
              
              {activeTab === 'history' && (
-                 <div className="flex-1 overflow-y-auto p-4 border-t border-slate-800">
+                    <div className="flex-1 overflow-y-auto p-4 border-t border-slate-800 min-h-[200px] md:min-h-0">
                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Recorded Sessions</h3>
                      {renderSessionList()}
                  </div>
              )}
+
+                {/* Mobile: Show Content Below Tabs if Architecture/Eval? 
+                 Actually, the original design has a side-by-side layout.
+                 On mobile, if we select Architecture, we probably want to hide this "Sidebar" and show the content?
+                 Or maybe we treat this "Sidebar" as the MAIN view for mobile when an agent is selected, 
+                 and the "Content" is accessed via these tabs?
+                 
+                 Let's try a simpler approach:
+                 On mobile, this "Sidebar" IS the view. 
+                 If activeTab is 'architecture', we show the diagram in a modal or push view?
+                 
+                 Alternative: 
+                 Keep the side-by-side but stack them on mobile?
+                 The "Sidebar" becomes the top part, "Content" becomes bottom?
+                 
+                 Let's go with: 
+                 Mobile: "Sidebar" is the navigation menu. 
+                 Clicking a tab switches the view to that content.
+                 BUT 'history' renders the list IN the sidebar.
+                 
+                 Let's just hide the "Content" area on mobile when "Sidebar" is visible?
+                 No, that's confusing.
+                 
+                 Let's use a Tab Bar for mobile?
+             */}
          </div>
 
-         {/* Main Content Area */}
-         <div className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col">
+            {/* Main Content Area - Hidden on mobile if we are "in the menu"? 
+             Actually, let's just stack them on mobile.
+             Sidebar (Agent Info + Tabs) -> Content.
+             But the Sidebar is `h-full`.
+             
+             Let's make the Sidebar `h-auto` on mobile and `flex-shrink-0`.
+         */}
+            <div className={`${showMobileDetail ? 'flex' : 'hidden'} md:flex flex-1 bg-slate-950 relative overflow-hidden flex-col ${activeTab === 'history' && !selectedSession ? 'hidden md:flex' : ''}`}>
+                {/* Mobile Back Button for Content View if needed? No, the sidebar has it. */}
+
              {/* Content Switcher */}
              {activeTab === 'architecture' && (
-                 <div className="flex-1 flex overflow-hidden">
-                     <div className="flex-1 h-full overflow-auto p-10 flex items-center justify-center">
-                        <div className="transform scale-90 origin-center">
+                    <div className="flex-1 flex overflow-hidden relative min-h-[400px] md:min-h-0">
+                        <div className="flex-1 h-full overflow-auto p-4 md:p-10 flex items-center justify-center bg-slate-950/50 touch-pan-x touch-pan-y">
+                            <div className="transform scale-75 md:scale-90 origin-center">
                             <AgentDiagram 
                                 agent={selectedAgent} 
                                 selectedId={selectedNodeId} 
@@ -614,7 +672,11 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                             />
                         </div>
                     </div>
-                    {selectedNodeId && renderNodeDetails()}
+                        {selectedNodeId && (
+                            <div className="absolute inset-0 z-50 md:static md:z-auto">
+                                {renderNodeDetails()}
+                            </div>
+                        )}
                  </div>
              )}
 
@@ -625,7 +687,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                      formatDate(selectedSession.timestamp, true),
                      () => setSelectedSession(null)
                  ) : (
-                     <div className="flex-1 flex items-center justify-center text-slate-500 text-sm italic">
+                            <div className="hidden md:flex flex-1 items-center justify-center text-slate-500 text-sm italic">
                          Select a session from the sidebar to view details.
                      </div>
                  )
@@ -638,13 +700,13 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 p-8">
+      <div className={`flex flex-col h-full bg-slate-900 p-4 md:p-8 overflow-y-auto ${showMobileDetail ? 'hidden md:flex' : 'flex'}`}>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Database className="text-brand-500" />
             Agent Registry
         </h1>
-        <p className="text-slate-400">Manage, review, and audit your deployed agent systems.</p>
+              <p className="text-slate-400 text-sm md:text-base">Manage, review, and audit your deployed agent systems.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -654,24 +716,25 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
             return (
                 <div 
                     key={agent.id}
-                    onClick={() => setSelectedAgent(agent)}
+                    onClick={() => handleAgentSelect(agent)}
                     className="relative bg-slate-800 border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-brand-500/50 hover:bg-slate-800/80 transition-all group"
                 >
-                    <button
-                        onClick={(e) => handleDeleteClick(e, agent.id)}
-                        className="absolute top-3 right-3 p-2 text-slate-600 hover:text-red-400 hover:bg-slate-900/50 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100"
-                        title="Delete Agent"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-
                     <div className="flex justify-between items-start mb-3">
                         <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                             <Bot size={20} />
                         </div>
-                        <span className="text-[10px] bg-slate-900 text-slate-500 px-2 py-1 rounded-full border border-slate-800">
-                            {formatDate(agent.createdAt)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-slate-900 text-slate-500 px-2 py-1 rounded-full border border-slate-800">
+                                {formatDate(agent.createdAt)}
+                            </span>
+                            <button
+                                onClick={(e) => handleDeleteClick(e, agent.id)}
+                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-slate-900/50 rounded-full transition-colors"
+                                title="Delete Agent"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
                     </div>
                     <h3 className="text-lg font-bold text-white mb-1 pr-8">{agent.name}</h3>
                     <p className="text-sm text-slate-400 line-clamp-2 mb-4 h-10">{agent.description}</p>

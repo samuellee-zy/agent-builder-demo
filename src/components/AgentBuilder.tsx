@@ -37,7 +37,9 @@ import {
   ChevronRight,
     Undo2,
     MapPin,
-    Train
+    Train,
+    Settings,
+    X
 } from 'lucide-react';
 
 interface AgentBuilderProps {
@@ -620,22 +622,40 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   // --- RENDERERS ---
 
   const renderToolSelector = () => (
-    <div className="absolute bottom-12 right-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl w-64 z-50 overflow-hidden">
-        <div className="p-3 border-b border-slate-700 bg-slate-800/50">
-            <h4 className="text-xs font-bold text-slate-400 uppercase">Available Tools</h4>
-        </div>
-        <div className="max-h-64 overflow-y-auto">
-            {AVAILABLE_TOOLS_LIST.map(tool => (
-                <div key={tool.id} className="px-3 py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-2">
-                    <Terminal size={14} className="text-brand-400" />
-                    <div>
-                        <p className="text-sm text-slate-200">{tool.name}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{tool.description}</p>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
+      <>
+          {/* Mobile Backdrop */}
+          <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => setShowToolSelector(false)}
+          />
+
+          {/* Responsive Container */}
+          <div className={`
+            z-50 overflow-hidden bg-slate-800 border-slate-700 shadow-xl
+            
+            /* Mobile: Bottom Sheet */
+            fixed bottom-0 left-0 right-0 rounded-t-2xl border-t
+            md:absolute md:bottom-12 md:right-0 md:w-64 md:rounded-xl md:border
+        `}>
+              <div className="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase">Available Tools</h4>
+                  <button onClick={() => setShowToolSelector(false)} className="md:hidden text-slate-400">
+                      <ChevronDown size={16} />
+                  </button>
+              </div>
+              <div className="max-h-[50vh] md:max-h-64 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+                  {AVAILABLE_TOOLS_LIST.map(tool => (
+                      <div key={tool.id} className="px-3 py-3 md:py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-3 md:gap-2 border-b border-slate-700/50 last:border-0 md:border-0">
+                          <Terminal size={16} className="text-brand-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                              <p className="text-sm text-slate-200 font-medium">{tool.name}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{tool.description}</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      </>
   );
 
   const renderBillingDialog = () => (
@@ -702,14 +722,14 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
               placeholder="I need a research team to search for latest AI news and summarize it..."
               className="w-full bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 resize-none h-32 text-lg p-4"
             />
-            <div className="flex justify-between items-center px-2 pb-2 mt-2 relative">
-                      <div className="flex items-center gap-2">
+                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center px-4 pb-3 mt-2 relative gap-3 md:gap-0">
+                      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
                           <button
                               onClick={() => setShowToolSelector(!showToolSelector)}
-                              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-slate-700/50 relative"
+                              className="flex items-center justify-center md:justify-start gap-2 text-slate-400 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-700/50 relative group/attach border border-slate-700/50 md:border-transparent"
                           >
-                              <Paperclip size={14} />
-                              <span>Attach Tools</span>
+                              <Paperclip size={16} className="group-hover/attach:text-brand-400 transition-colors" />
+                              <span className="font-medium">Attach Tools</span>
                           </button>
 
                           {/* Model Selector */}
@@ -717,12 +737,12 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                               <select
                                   value={architectModel}
                                   onChange={(e) => setArchitectModel(e.target.value)}
-                                  className="appearance-none bg-slate-900/50 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 pr-8 hover:border-slate-500 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                                  className="w-full md:w-auto appearance-none bg-slate-900/50 border border-slate-700 text-slate-300 text-xs font-medium rounded-lg pl-4 pr-10 py-2 hover:border-slate-500 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer md:min-w-[200px]"
                               >
                                   <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
                                   <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
                               </select>
-                              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover/model:text-slate-300 transition-colors" />
                           </div>
                       </div>
                {showToolSelector && renderToolSelector()}
@@ -730,7 +750,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                <button 
                  onClick={handleArchitectSend}
                  disabled={!architectInput.trim()}
-                 className="bg-brand-600 hover:bg-brand-500 text-white p-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+                          className="bg-brand-600 hover:bg-brand-500 text-white p-3 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex justify-center items-center"
                >
                  <ArrowRight size={20} />
                </button>
@@ -809,11 +829,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                     onKeyDown={(e) => e.key === 'Enter' && !isArchitectTyping && handleArchitectSend()}
                     placeholder="Refine the plan..."
                     disabled={isArchitectTyping}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-full pl-6 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-lg disabled:opacity-50"
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-full pl-6 pr-20 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-lg disabled:opacity-50"
                 />
                  <button 
                     onClick={() => setShowToolSelector(!showToolSelector)}
-                    className="absolute right-10 top-2 p-1 text-slate-400 hover:text-white transition-colors"
+                      className="absolute right-12 top-1.5 p-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <Paperclip size={18} />
                 </button>
@@ -822,7 +842,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 <button 
                     onClick={handleArchitectSend}
                     disabled={!architectInput.trim() || isArchitectTyping}
-                    className="absolute right-2 top-2 p-1 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
+                      className="absolute right-2 top-1.5 p-2 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
                 >
                     <ArrowRight size={18} />
                 </button>
@@ -831,8 +851,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     </div>
   );
 
+    const [showMobileInspector, setShowMobileInspector] = useState(false);
+
   const renderArchitectView = () => (
-    <div className="flex h-full overflow-hidden bg-slate-900">
+      <div className="flex h-full overflow-hidden bg-slate-900 relative">
         {/* Left: Diagram Canvas */}
         <div className="flex-1 flex flex-col relative bg-slate-950 overflow-hidden">
              <div className="absolute top-4 left-4 z-20 flex gap-2">
@@ -859,13 +881,27 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 )}
              </div>
 
-             <div className="flex-1 overflow-auto p-10 flex items-center justify-center min-w-full min-h-full">
+              {/* Mobile: Edit Config Button */}
+              <div className="absolute top-4 right-4 z-20 md:hidden">
+                  <button
+                      onClick={() => setShowMobileInspector(true)}
+                      className="px-3 py-1.5 bg-slate-800 text-white text-xs rounded border border-slate-700 shadow-lg flex items-center gap-2"
+                  >
+                      <Settings size={14} />
+                      <span>Config</span>
+                  </button>
+              </div>
+
+              <div className="flex-1 overflow-auto p-10 flex items-center justify-center min-w-full min-h-full touch-pan-x touch-pan-y">
                 {rootAgent && (
                     <div className="transform scale-100 origin-center min-w-max pb-20">
                        <AgentDiagram 
                           agent={rootAgent} 
                           selectedId={selectedAgentId || ''} 
-                          onSelect={(a) => setSelectedAgentId(a.id)}
+                              onSelect={(a) => {
+                                  setSelectedAgentId(a.id);
+                                  setShowMobileInspector(true);
+                              }}
                           onAddSub={handleAddSub}
                           onDelete={handleDeleteNode}
                           depth={0} 
@@ -874,10 +910,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 )}
              </div>
 
-             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full px-4 md:w-auto md:px-0">
                 <button 
                     onClick={handleStartTest}
-                    className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-full font-bold shadow-xl shadow-brand-500/20 transition-all hover:scale-105"
+                      className="w-full md:w-auto flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-full font-bold shadow-xl shadow-brand-500/20 transition-all hover:scale-105"
                 >
                     <Play size={18} />
                     Deploy & Test System
@@ -886,7 +922,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         </div>
 
         {/* Right: Inspector Panel */}
-        <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl z-30 flex-shrink-0">
+          <div className={`
+            bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl z-40 flex-shrink-0
+            fixed inset-0 w-full md:static md:w-96 md:inset-auto transition-transform duration-300
+            ${showMobileInspector ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+        `}>
             {selectedAgent ? (
                 <>
                     <div className="p-5 border-b border-slate-800 flex justify-between items-start bg-slate-900">
@@ -894,9 +934,15 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                            <h3 className="font-bold text-white text-lg">{selectedAgent.type === 'group' ? 'Flow Controller' : 'Agent Config'}</h3>
                            <p className="text-xs text-slate-400">ID: {selectedAgent.id.slice(-6)}</p>
                         </div>
+                          <button
+                              onClick={() => setShowMobileInspector(false)}
+                              className="md:hidden p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg"
+                          >
+                              <X size={20} />
+                          </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
+                      <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar pb-[calc(1rem+env(safe-area-inset-bottom))]">
                          <div className="space-y-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Name</label>
@@ -982,7 +1028,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                                                     </div>
                                                 )}
                                             </div>
-                                        )
+                                        );
                                     })}
                                 </div>
                              </div>
@@ -1220,7 +1266,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                 <button 
                     onClick={() => handleTestSendMessage()}
                     disabled={!testInput.trim() || isTyping}
-                    className="absolute right-2 top-2 p-1.5 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
+                      className="absolute right-2 top-2 p-2 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
                 >
                     <ArrowRight size={20} />
                 </button>

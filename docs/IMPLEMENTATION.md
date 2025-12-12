@@ -43,6 +43,10 @@ A state-machine driven component managing the lifecycle of an agent.
   - **Deduping:** Prevents chat clutter by checking for existing confirmation messages before adding new ones.
     - **Fix (12/12/2025):** Updated logic to check the last *visible* message (ignoring hidden system messages) to ensure accurate deduping even after state syncs.
 - **Undo/Revert Architecture:** Maintains a `history` stack of the agent tree. Destructive actions (delete, add sub-agent) call `saveCheckpoint()` first. `handleUndo` restores the previous state.
+- **Mobile Optimization:**
+  - **Touch-Friendly:** Chat input buttons ("Send", "Attach") have enlarged touch targets (>44px) for easier interaction on mobile devices.
+  - **Mobile Inspector:** The "Agent Config" panel slides in as a full-screen overlay on mobile, toggleable via a "Config" button, ensuring it doesn't cramp the diagram view.
+  - **Touch Gestures:** The diagram canvas supports native touch scrolling and panning.
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
   - Instead of random timestamps, new test sessions are assigned strict sequential IDs (1, 2, 3...).
@@ -120,6 +124,9 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - **Evaluation Dashboard:** Visualizes test reports with aggregate scores and drill-down views into individual scenario transcripts.
   - **Deletion:** Permanent removal of agents via `App.tsx` state management.
   - **Video Playback:** Uses `VideoMessage` component to fetch secure blobs for Veo content.
+  - **Mobile Responsiveness:**
+    - **Master-Detail Stack:** On mobile, the layout switches from a side-by-side view to a stacked approach. The "Sidebar" (Agent Info & Tabs) serves as the main view, with content (Architecture/History) accessible via tabs.
+    - **Navigation:** Implemented robust back-navigation logic to prevent "blank screen" states when returning to the registry list.
 
 ### 7. The Watchtower (Observability Engine) (`src/services/watchtower.ts`)
 A centralized observability dashboard for analyzing agent performance in the wild.

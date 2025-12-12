@@ -14,7 +14,8 @@ import {
   Lightbulb, 
   Clock, 
   Target, 
-  Terminal
+    Terminal,
+    ChevronDown
 } from 'lucide-react';
 
 interface WatchtowerProps {
@@ -71,8 +72,8 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
 
   return (
     <div className="flex h-full bg-slate-900 text-slate-200">
-        {/* Sidebar: Agent Selector */}
-        <div className="w-64 bg-slate-950 border-r border-slate-800 p-4 flex flex-col">
+          {/* Sidebar: Agent Selector (Desktop) */}
+          <div className="hidden md:flex w-64 bg-slate-950 border-r border-slate-800 p-4 flex-col">
             <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Select Agent</h2>
             <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
                 {agents.map(agent => (
@@ -96,19 +97,38 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-8">
-            <div className="flex items-center justify-between mb-8">
+          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+              {/* Mobile Agent Selector */}
+              <div className="md:hidden mb-6">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Agent</label>
+                  <div className="relative">
+                      <select
+                          value={selectedAgentId}
+                          onChange={(e) => setSelectedAgentId(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-3 appearance-none focus:ring-2 focus:ring-brand-500 outline-none"
+                      >
+                          {agents.map(agent => (
+                              <option key={agent.id} value={agent.id}>
+                                  {agent.name} {agent.watchtowerAnalysis ? '(Analyzed)' : ''}
+                              </option>
+                          ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                  </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                      <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
                         <Activity className="text-brand-500" />
                         Watchtower
                     </h1>
-                    <p className="text-slate-400">Observability & Insights Engine</p>
+                      <p className="text-slate-400 text-sm md:text-base">Observability & Insights Engine</p>
                 </div>
                 <button 
                     onClick={handleRunAnalysis}
                     disabled={isAnalyzing}
-                    className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-brand-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100"
+                      className="w-full md:w-auto bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100"
                 >
                     {isAnalyzing ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />}
                     {isAnalyzing ? 'Analyzing...' : 'Run Deep Analysis'}

@@ -83,6 +83,8 @@ const App: React.FC = () => {
     </div>
   );
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-200 overflow-hidden font-sans selection:bg-brand-500/30">
       <Sidebar 
@@ -91,9 +93,22 @@ const App: React.FC = () => {
         onSelectAgent={handleSelectAgent}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       <main className="flex-1 flex flex-col h-full bg-slate-900 relative shadow-2xl overflow-hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900 shrink-0 z-30">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -ml-2 text-slate-400 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
+          </button>
+          <span className="ml-2 font-bold text-white">Agent Builder</span>
+        </div>
+
         {activeTab === 'overview' && <Overview />}
         
         {activeTab === 'watchtower' && (

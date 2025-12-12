@@ -4,6 +4,19 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 13/12/2025 - Mobile Optimization & Polish
+- **Agent Registry Mobile Experience**:
+  - **Responsive Layout**: Implemented a master-detail stack layout for mobile. The sidebar (tabs) and content areas now stack vertically or toggle appropriately, ensuring full accessibility on small screens.
+  - **Navigation Fix**: Resolved a "blank screen" bug when navigating back from an agent detail view by correctly resetting the selection state.
+  - **Visual Polish**: Fixed the "Delete" button layout on agent cards to prevent text overlap. Enabled proper vertical scrolling for the agent list.
+- **Agent Builder Mobile Enhancements**:
+  - **Touch Targets**: Increased the size of "Send" and "Attach" buttons in the Chat Interface for better touch usability.
+  - **Mobile Inspector**: Made the Agent Inspector panel toggleable on mobile devices, preventing it from permanently obscuring the diagram.
+  - **Diagram Interaction**: Verified and optimized touch gestures (panning/zooming) for the Agent Diagram.
+- **Global UI Improvements**:
+  - **Sidebar**: Increased vertical padding on navigation buttons to meet mobile touch target standards.
+  - **Type Safety**: Added global type definition for `window.aistudio` to resolve lint errors.
+
 ### 12/12/2025 - UX & Performance Fixes
 - **Concurrent Workflow Execution**:
   - **Parallel Processing**: Refactored `AgentOrchestrator` to use `Promise.all` for tool execution.
