@@ -8,6 +8,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Google Search',
     description: 'Uses Google Search to ground the response in real-world data and current events.',
     category: 'Grounding',
+    tags: ['Grounding', 'Search'],
     functionDeclaration: {
       name: '__native_google_search__', 
       description: 'Native Google Search Grounding',
@@ -19,6 +20,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Calculator',
     description: 'Perform mathematical calculations.',
     category: 'Utility',
+    tags: ['Utility', 'Math'],
     functionDeclaration: {
       name: 'calculator',
       description: 'Evaluates a mathematical expression.',
@@ -47,6 +49,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'System Time',
     description: 'Get the current date and time.',
     category: 'Utility',
+    tags: ['Utility', 'Time'],
     functionDeclaration: {
       name: 'get_current_time',
       description: 'Returns the current date and time in ISO format.',
@@ -64,6 +67,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Simulated Web Search',
     description: 'Simulates a search engine for demo purposes (Mock).',
     category: 'Data Retrieval',
+    tags: ['Data Retrieval', 'Search'],
     functionDeclaration: {
       name: 'web_search_mock',
       description: 'Searches the web for information.',
@@ -90,6 +94,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'CRM Customer Lookup',
     description: 'Retrieve customer details, VIP status, and recent interactions by email.',
     category: 'Customer Service',
+    tags: ['Customer Service', 'Data Retrieval'],
     functionDeclaration: {
       name: 'crm_customer_lookup',
       description: 'Looks up a customer in the database.',
@@ -129,6 +134,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Check Order Status',
     description: 'Get the shipping status and delivery date of an order.',
     category: 'Customer Service',
+    tags: ['Customer Service', 'Data Retrieval'],
     functionDeclaration: {
       name: 'check_order_status',
       description: 'Checks the status of an order ID.',
@@ -159,6 +165,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Knowledge Base Search',
     description: 'Search company policies, FAQs, and documentation.',
     category: 'Customer Service',
+    tags: ['Customer Service', 'Search', 'Knowledge Base'],
     functionDeclaration: {
       name: 'kb_search',
       description: 'Searches the internal knowledge base for policy information.',
@@ -185,6 +192,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Create Support Ticket',
     description: 'Escalate an issue by creating a ticket in the tracking system.',
     category: 'Customer Service',
+    tags: ['Customer Service', 'Action'],
     functionDeclaration: {
       name: 'create_support_ticket',
       description: 'Creates a new support ticket.',
@@ -213,6 +221,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'Publish Report',
     description: 'Publishes a formatted report to the user interface.',
     category: 'Utility',
+    tags: ['Utility', 'Report'],
     functionDeclaration: {
       name: 'publish_report',
       description: 'Publishes a structured report with markdown content.',
@@ -240,6 +249,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'NSW Trains Realtime',
     description: 'Get real-time trip updates for Sydney Trains network.',
     category: 'Data Retrieval',
+    tags: ['Data Retrieval', 'Transport'],
     functionDeclaration: {
       name: 'nsw_trains_realtime',
       description: 'Fetches real-time trip updates for Sydney Trains.',
@@ -278,6 +288,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'NSW Metro Realtime',
     description: 'Get real-time trip updates for Sydney Metro network.',
     category: 'Data Retrieval',
+    tags: ['Data Retrieval', 'Transport'],
     functionDeclaration: {
       name: 'nsw_metro_realtime',
       description: 'Fetches real-time trip updates for Sydney Metro.',
@@ -308,6 +319,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     name: 'NSW Trip Planner',
     description: 'Plan a trip using NSW public transport (Trains, Metro, Buses, Ferries, etc.).',
     category: 'Data Retrieval',
+    tags: ['Data Retrieval', 'Transport', 'Planning'],
     functionDeclaration: {
       name: 'nsw_trip_planner',
       description: 'Plans a trip between two locations using specified transport modes.',

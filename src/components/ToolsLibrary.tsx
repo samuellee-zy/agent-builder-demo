@@ -3,20 +3,45 @@ import { AVAILABLE_TOOLS_LIST } from '../services/tools';
 import { Tool } from '../types';
 import { LocationAutocomplete } from './LocationAutocomplete';
 import { ModeDropdown } from './ModeDropdown';
-import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight, MapPin, Train } from 'lucide-react';
+import { CategoryDropdown } from './CategoryDropdown';
+import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight, MapPin, Train, Search, ChevronLeft, Globe, Users, Package, BookOpen, Ticket, FileText, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 export const ToolsLibrary: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTag, setSelectedTag] = useState('All');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 16;
   
   // Test State
   const [testParams, setTestParams] = useState<Record<string, string>>({});
   const [executionResult, setExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
 
-  // Group tools by category
-  const categories = Array.from(new Set(AVAILABLE_TOOLS_LIST.map(t => t.category)));
+    // Filter & Pagination Logic
+    const uniqueTags = Array.from(new Set(AVAILABLE_TOOLS_LIST.flatMap(t => t.tags || [t.category]))).sort();
+    const allTags = ['All', ...uniqueTags];
+
+    const filteredTools = AVAILABLE_TOOLS_LIST.filter(tool => {
+        const toolTags = tool.tags || [tool.category];
+        const matchesTag = selectedTag === 'All' || toolTags.includes(selectedTag);
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch = tool.name.toLowerCase().includes(searchLower) ||
+            tool.description.toLowerCase().includes(searchLower);
+        return matchesTag && matchesSearch;
+    });
+
+    const totalPages = Math.ceil(filteredTools.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const visibleTools = filteredTools.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -27,6 +52,24 @@ export const ToolsLibrary: React.FC = () => {
       default: return <LayoutGrid size={18} className="text-slate-400" />;
     }
   };
+
+    const getToolIcon = (toolId: string) => {
+        switch (toolId) {
+            case 'google_search': return <Globe size={24} className="text-blue-400" />;
+            case 'calculator': return <Calculator size={24} className="text-green-400" />;
+            case 'get_current_time': return <Clock size={24} className="text-teal-400" />;
+            case 'web_search_mock': return <Search size={24} className="text-purple-400" />;
+            case 'crm_customer_lookup': return <Users size={24} className="text-pink-400" />;
+            case 'check_order_status': return <Package size={24} className="text-orange-400" />;
+            case 'kb_search': return <BookOpen size={24} className="text-cyan-400" />;
+            case 'create_support_ticket': return <Ticket size={24} className="text-rose-400" />;
+            case 'publish_report': return <FileText size={24} className="text-indigo-400" />;
+            case 'nsw_trains_realtime': return <Train size={24} className="text-amber-400" />;
+            case 'nsw_metro_realtime': return <Train size={24} className="text-emerald-400" />;
+            case 'nsw_trip_planner': return <MapPin size={24} className="text-red-400" />;
+            default: return <Terminal size={24} className="text-slate-400" />;
+        }
+    };
 
   const handleSelectTool = (tool: Tool) => {
     setSelectedTool(tool);
@@ -69,18 +112,22 @@ export const ToolsLibrary: React.FC = () => {
       const isNative = selectedTool.id === 'google_search';
 
       return (
-          <div className="w-[500px] bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl flex-shrink-0 animate-in slide-in-from-right duration-300 absolute right-0 top-0 z-20">
+          <div className="fixed inset-0 z-50 lg:absolute lg:right-0 lg:left-auto lg:top-0 lg:h-full lg:w-[500px] lg:z-20 bg-slate-900 lg:border-l border-slate-800 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
               <div className="p-5 border-b border-slate-800 flex justify-between items-start bg-slate-900">
                   <div>
                      <h3 className="font-bold text-white text-lg">{selectedTool.name}</h3>
-                     <div className="flex items-center gap-2 mt-1">
-                        <code className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 font-mono">
+                      <div className="mt-1 mb-2">
+                          <code className="px-2 py-1 rounded bg-yellow-500/10 border border-yellow-500/20 text-xs font-mono text-yellow-500">
                             {selectedTool.id}
-                        </code>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider border border-slate-700 px-1.5 py-0.5 rounded">
-                            {selectedTool.category}
-                        </span>
-                     </div>
+                          </code>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                          {(selectedTool.tags || [selectedTool.category]).map((tag, i) => (
+                              <span key={i} className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                  {tag}
+                              </span>
+                          ))}
+                      </div>
                   </div>
                   <button 
                       onClick={() => setSelectedTool(null)}
@@ -272,28 +319,48 @@ export const ToolsLibrary: React.FC = () => {
 
   return (
     <div className="flex h-full bg-slate-900 relative overflow-hidden">
-      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${selectedTool ? 'mr-[500px]' : ''}`}>
-          <div className="p-8 border-b border-slate-800 bg-slate-900 sticky top-0 z-10">
-            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-                <Terminal className="text-brand-500" />
-                Tools Library
-            </h1>
-            <p className="text-slate-400">
-                {AVAILABLE_TOOLS_LIST.length} executable functions available for agent assignment.
-            </p>
-          </div>
+          <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${selectedTool ? 'lg:mr-[500px]' : ''}`}>
+              {/* Header */}
+              <div className="p-6 border-b border-slate-800 bg-slate-900 sticky top-0 z-10 space-y-4">
+                  <div className="flex items-center justify-between">
+                      <div>
+                          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                              <Terminal className="text-brand-500" />
+                              Tools Library
+                          </h1>
+                          <p className="text-slate-400 text-sm mt-1">
+                              {AVAILABLE_TOOLS_LIST.length} executable functions available.
+                          </p>
+                      </div>
+                  </div>
 
-          <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
-            {categories.map(category => (
-                <div key={category}>
-                    <div className="flex items-center gap-2 mb-4">
-                        {getCategoryIcon(category)}
-                        <h2 className="text-lg font-bold text-white uppercase tracking-wider">{category}</h2>
-                        <div className="h-px bg-slate-800 flex-1 ml-4"></div>
-                    </div>
+                  {/* Search & Filter */}
+                  <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <div className="relative w-full md:w-[600px]">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                          <input
+                              type="text"
+                              value={searchQuery}
+                              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                              placeholder="Search tools..."
+                              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:ring-2 focus:ring-brand-500/50 outline-none"
+                          />
+                      </div>
+                      <div className="flex-shrink-0">
+                          <CategoryDropdown
+                              value={selectedTag}
+                              categories={allTags}
+                              onChange={(tag) => { setSelectedTag(tag); setCurrentPage(1); }}
+                          />
+                      </div>
+                  </div>
+              </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {AVAILABLE_TOOLS_LIST.filter(t => t.category === category).map((tool) => {
+              {/* Grid */}
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                  {visibleTools.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                          {visibleTools.map((tool) => {
                         const isNative = tool.id === 'google_search';
                         const isSelected = selectedTool?.id === tool.id;
 
@@ -302,44 +369,73 @@ export const ToolsLibrary: React.FC = () => {
                             key={tool.id} 
                             onClick={() => handleSelectTool(tool)}
                             className={`
-                                group relative border rounded-xl overflow-hidden transition-all shadow-sm cursor-pointer
+                                group relative border rounded-xl overflow-hidden transition-all shadow-sm cursor-pointer flex flex-col
                                 ${isSelected 
-                                    ? 'bg-slate-800 border-brand-500 ring-1 ring-brand-500/50' 
+                                ? 'bg-brand-900/10 border-brand-500 ring-1 ring-brand-500/50 shadow-[0_0_20px_rgba(var(--brand-500-rgb),0.1)]' 
                                     : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-800/80'}
                             `}
                         >
-                            <div className="p-5">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-bold text-white text-lg group-hover:text-brand-300 transition-colors">{tool.name}</h3>
+                                <div className="p-5 flex-1">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="p-2 rounded-lg bg-slate-900/50 border border-slate-700/50 group-hover:border-slate-600 transition-colors">
+                                            {getToolIcon(tool.id)}
+                                        </div>
                                         {isNative && <Zap size={14} className="text-yellow-500" fill="currentColor" />}
                                     </div>
-                                    <ChevronRight size={16} className={`text-slate-600 transition-transform ${isSelected ? 'rotate-90 text-brand-500' : 'group-hover:text-slate-400'}`} />
-                                </div>
-                                <p className="mt-2 text-sm text-slate-300 leading-relaxed line-clamp-2">
+                                    <h3 className={`font-bold text-lg mb-2 transition-colors ${isSelected ? 'text-brand-300' : 'text-white group-hover:text-brand-300'}`}>
+                                        {tool.name}
+                                    </h3>
+                                    <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
                                     {tool.description}
                                 </p>
                             </div>
                             
-                            <div className="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 flex items-center justify-between">
-                                <code className="text-[10px] text-slate-500 font-mono">
-                                    {tool.id}
-                                </code>
-                                {isNative ? (
-                                    <span className="text-[10px] text-yellow-500/80 font-medium">Native Grounding</span>
-                                ) : (
-                                    <div className="flex items-center gap-1.5 text-[10px] text-brand-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Code2 size={12} /> View Source
+                                <div className="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 flex items-center justify-between mt-auto">
+                                    <div className="flex flex-wrap gap-1">
+                                        {(tool.tags || [tool.category]).map((tag, i) => (
+                                            <span key={i} className="text-[10px] uppercase tracking-wider text-slate-500 font-bold bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-700/50">
+                                                {tag}
+                                            </span>
+                                        ))}
                                     </div>
-                                )}
-                            </div>
+                                    <ChevronRight size={16} className={`text-slate-600 transition-transform ${isSelected ? 'rotate-90 text-brand-500' : 'group-hover:text-slate-400'}`} />
+                                </div>
                         </div>
                         );
                     })}
-                    </div>
-                </div>
-            ))}
-          </div>
+                      </div>
+                  ) : (
+                      <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                          <Search size={48} className="mb-4 opacity-20" />
+                          <p>No tools found matching your criteria.</p>
+                      </div>
+                  )}
+              </div>
+
+              {/* Pagination Footer */}
+              {totalPages > 1 && (
+                  <div className="p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between">
+                      <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                          <ChevronLeft size={16} />
+                          Previous
+                      </button>
+                      <span className="text-xs text-slate-500 font-mono">
+                          Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                          Next
+                          <ChevronRight size={16} />
+                      </button>
+                  </div>
+              )}
       </div>
 
       {renderToolInspector()}

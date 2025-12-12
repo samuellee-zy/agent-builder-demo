@@ -47,6 +47,19 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Bug Fixes**:
   - **Model Parameter**: Fixed a bug in `AgentBuilder.tsx` where the selected model was not being passed to the backend service.
 
+### 12/12/2025 - Tools Library Overhaul
+- **Tagging System**:
+  - **Multi-Tag Support**: Migrated from single-category "pills" to a flexible tagging system. Tools can now have multiple tags (e.g., `['Data Retrieval', 'Transport']`), allowing for better classification and discoverability.
+  - **Smart Filtering**: The new `CategoryDropdown` filters tools by checking if they *contain* the selected tag, rather than an exact category match.
+- **UI/UX Refinements**:
+  - **Premium Dropdown**: Replaced the "pill" selector with a scalable, responsive dropdown menu for tag filtering.
+  - **Search & Layout**: Implemented a real-time search bar (600px width) and a responsive grid layout (up to 4 columns on ultra-wide screens).
+  - **Pagination**: Increased density to 16 tools per page for better use of screen real estate.
+  - **Inspector Polish**:
+    - **Layout**: Reordered inspector details (Title -> Tool ID (Yellow) -> Tags) for a cleaner hierarchy.
+    - **Positioning**: Fixed inspector alignment on large screens (`lg:left-auto`) to ensure it stays on the right.
+    - **Visuals**: Added unique icons for every tool (Globe, Train, MapPin, etc.) and enhanced the "Selected" state with a distinct glow.
+
 ### 12/12/2025 - Architect Persistence & Enhancement Workflow
 - **Architect Chat Persistence**:
   - Implemented **IndexedDB Storage** (via `idb-keyval`) to persist AI Architect chat sessions across page reloads.

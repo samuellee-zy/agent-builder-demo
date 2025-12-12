@@ -49,6 +49,7 @@ export interface Tool {
   name: string;
   description: string;
   category: string;
+  tags: string[];
   // The schema sent to Gemini
   functionDeclaration: FunctionDeclaration; 
   // The actual JS implementation
@@ -140,6 +141,7 @@ export const AVAILABLE_TOOLS = [
     name: 'Calculator',
     description: 'Perform mathematical calculations.',
     category: 'Utility',
+    tags: ['Utility', 'Math'],
     code: `// Calculator Tool
 export const calculator = ({ expression }) => {
   try {
@@ -154,6 +156,7 @@ export const calculator = ({ expression }) => {
     name: 'System Time',
     description: 'Get the current date and time.',
     category: 'Utility',
+    tags: ['Utility', 'Time'],
     code: `// System Time Tool
 export const get_current_time = () => {
   return new Date().toISOString();
@@ -164,6 +167,7 @@ export const get_current_time = () => {
     name: 'Simulated Web Search',
     description: 'Simulates a search engine for demo purposes.',
     category: 'Data Retrieval',
+    tags: ['Data Retrieval', 'Search'],
     code: `// Mock Search Tool
 export const web_search_mock = async ({ query }) => {
   await new Promise(resolve => setTimeout(resolve, 1000));

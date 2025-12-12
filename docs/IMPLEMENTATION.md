@@ -57,7 +57,21 @@ The recursive visualization engine for the agent tree.
 - **Sequential Indicators:** Renders numbered badges (#1, #2) and vertical arrows for agents inside sequential groups.
 - **Deletion UX:** Handles deletion logic for nested groups and hides controls in `readOnly` mode (used in Registry).
 
-### 4. The Orchestration Engine (`src/services/orchestrator.ts`)
+### 4. The Tools Library (`src/components/ToolsLibrary.tsx`)
+The central repository for discovering and assigning capabilities to agents.
+- **Tagging Architecture:**
+  - Tools are no longer bound to a single "Category". They now possess a `tags: string[]` array (e.g., `['Transport', 'Data Retrieval']`).
+  - **Filtering:** The `CategoryDropdown` component aggregates all unique tags from the registry. Selecting a tag filters the view to show any tool containing that tag.
+- **Responsive Grid:**
+  - Adapts from 1 column (Mobile) to 4 columns (Ultra-Wide).
+  - **Pagination:** Renders 16 items per page to maximize density on large displays.
+- **Inspector UI:**
+  - **Mobile-First:** Renders as a full-screen modal on small devices (<1024px) to prevent layout breakage.
+  - **Desktop:** slides in as a sidebar on the right.
+  - **Hierarchy:** Displays Title -> Tool ID (High Visibility) -> Tags.
+- **Search:** Real-time client-side filtering by name and description.
+
+### 5. The Orchestration Engine (`src/services/orchestrator.ts`)
 The runtime "Brain" running in the browser.
 - **Coordinator Pattern:** Dynamically injects `delegate_to_agent` tools for agents with children.
 - **Concurrent Execution:** Refactored to use `Promise.all` for processing tool calls. This allows the Coordinator to delegate tasks to multiple sub-agents simultaneously (e.g., "Ask Agent A and Agent B"), significantly reducing total latency for parallelizable workflows.

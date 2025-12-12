@@ -28,6 +28,7 @@ This document provides a comprehensive reference for all executable tools availa
 
 ### Google Search
 **ID:** `google_search`  
+**Tags:** `Grounding`, `Search`  
 **Description:** Uses Google Search to ground the response in real-world data and current events.  
 **Native Integration:** This tool is handled natively by the Gemini API.
 
@@ -37,17 +38,20 @@ This document provides a comprehensive reference for all executable tools availa
 
 ### Calculator
 **ID:** `calculator`  
+**Tags:** `Utility`, `Math`  
 **Description:** Perform mathematical calculations.  
 **Parameters:**
 - `expression` (string, required): The mathematical expression to evaluate (e.g., "2 + 2 * 5").
 
 ### System Time
 **ID:** `get_current_time`  
+**Tags:** `Utility`, `Time`  
 **Description:** Get the current date and time in ISO format.  
 **Parameters:** None.
 
 ### Publish Report
 **ID:** `publish_report`  
+**Tags:** `Utility`, `Report`  
 **Description:** Publishes a formatted report to the user interface.  
 **Parameters:**
 - `title` (string, required): The title of the report.
