@@ -25,7 +25,7 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
   - **JSON Cleaning:** Implements `cleanJson` utility to strip Markdown fences from LLM responses before parsing.
 - **Pure Coordinator Pattern:** The Architect is instructed to never assign tools to a Root Agent if it has sub-agents. Tools are pushed down to leaf nodes to ensure clean delegation and avoid API conflicts (Search vs Function Calling).
 
-### 2. The Visual Builder (`components/AgentBuilder.tsx`)
+### 2. The Visual Builder (`src/components/AgentBuilder.tsx`)
 A state-machine driven component managing the lifecycle of an agent.
 - **State Machine:** Input -> Building -> Review -> Testing.
   - Uses `idb-keyval` to store the **Architect Chat History** locally.
@@ -47,7 +47,7 @@ A state-machine driven component managing the lifecycle of an agent.
   - **Logic:** Scans existing sessions, filters out legacy timestamp-based IDs (>1 billion), finds the current maximum, and increments by 1.
 - **Message Deduplication:** Checks incoming messages from the Orchestrator against the last displayed message to prevent the "Echoing" effect where a parent agent repeats the child's output verbatim.
 
-### 3. The Visual Diagram (`components/AgentDiagram.tsx`)
+### 3. The Visual Diagram (`src/components/AgentDiagram.tsx`)
 The recursive visualization engine for the agent tree.
 - **Seamless Connectors:** Refactored to use `w-[calc(50%+1px)]` logic to create perfect overlaps between horizontal arms and vertical stems. Lines are now 2px thick (`w-0.5`, `h-0.5`) and colored `slate-700` for high visibility.
 - **Dynamic Layering (Z-Index):** Implements a `nodeZIndex` strategy (`z-50` when active, `z-10` default) to ensure that the "Add Sub-Agent" menu is never obscured by subsequent nodes in the DOM hierarchy.
@@ -55,7 +55,7 @@ The recursive visualization engine for the agent tree.
 - **Sequential Indicators:** Renders numbered badges (#1, #2) and vertical arrows for agents inside sequential groups.
 - **Deletion UX:** Handles deletion logic for nested groups and hides controls in `readOnly` mode (used in Registry).
 
-### 4. The Orchestration Engine (`services/orchestrator.ts`)
+### 4. The Orchestration Engine (`src/services/orchestrator.ts`)
 The runtime "Brain" running in the browser.
 - **Coordinator Pattern:** Dynamically injects `delegate_to_agent` tools for agents with children.
 - **Recursive Execution:** Handles nested agent loops and message passing.
@@ -77,7 +77,7 @@ The runtime "Brain" running in the browser.
   - **Specialized Handlers:** Detects `veo-*` and `imagen-*` models and routes them to `generateVideos` and `generateImages` APIs respectively, bypassing the default `generateContent` loop.
 - **Limitations:** Detects conflicts between Function Calling and Google Search Grounding (which cannot be mixed on some models) and prioritizes functions for delegation.
 
-### 5. Automated Evaluation (`services/evaluation.ts`)
+### 5. Automated Evaluation (`src/services/evaluation.ts`)
 An **LLM-as-a-Judge** system to stress-test agents.
 - **Architecture:** 
   1. **Generator:** Uses `gemini-3-pro-preview` to invent realistic, challenging user scenarios based on the agent's goal.
@@ -93,7 +93,7 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - Runs tests in **Sequential** batches if scenario count > 3 (Safe, prevents Rate Limits).
 - **Latency Tracking:** `ChatMessage` now includes a `latency` field, visualized in the UI.
 
-### 6. Agent Registry & Persistence (`components/AgentRegistry.tsx`, `services/storage.ts`)
+### 6. Agent Registry & Persistence (`src/components/AgentRegistry.tsx`, `src/services/storage.ts`)
 - **Data Model:** `Agent` objects containing:
   - `subAgents`: Recursive hierarchy.
   - `sessions`: Historical chat logs with rich media.
@@ -104,7 +104,7 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - **Deletion:** Permanent removal of agents via `App.tsx` state management.
   - **Video Playback:** Uses `VideoMessage` component to fetch secure blobs for Veo content.
 
-### 7. The Watchtower (Observability Engine) (`services/watchtower.ts`)
+### 7. The Watchtower (Observability Engine) (`src/services/watchtower.ts`)
 A centralized observability dashboard for analyzing agent performance in the wild.
 - **Batch Analysis:** Uses `gemini-3-pro-preview` to analyze batches of recent session transcripts (up to 20).
 - **Transcript Compression:** Strips heavy media tokens before analysis to ensure the context window is used for reasoning, not raw pixels.
@@ -123,39 +123,43 @@ A centralized observability dashboard for analyzing agent performance in the wil
 ### Deployment Architecture
 The application uses a **Multi-Stage Docker Build** to optimize image size and security:
 1.  **Build Stage (`node:18-alpine`)**: Installs dependencies and compiles the React application (`npm run build`).
-2.  **Production Stage (`node:18-alpine`)**: Runs the Node.js backend (`server.js`) which serves the static assets and handles API requests.
+2.  **Production Stage (`node:18-alpine`)**: Runs the Node.js backend (`server/index.js`) which serves the static assets and handles API requests.
     - **Port**: Exposes port `8080` to comply with Cloud Run requirements.
     - **Authentication**: Uses **Application Default Credentials (ADC)** via the Cloud Run Service Account. No API keys are needed.
 
-- **`types.ts`**: Source of Truth. Defines `Agent`, `Tool`, `ChatMessage`, `EvaluationReport`, `WatchtowerAnalysis`, etc.
-- **`App.tsx`**: Application Root. Manages routing, global agent state, and LocalStorage persistence.
-- **`components/AgentBuilder.tsx`**: Main workspace for creation and testing. Handles the "Build" and "Test" phases.
-- **`components/AgentDiagram.tsx`**: Recursive tree visualization.
-- **`components/AgentRegistry.tsx`**: Dashboard for auditing history and running evaluations.
-- **`components/Watchtower.tsx`**: Observability dashboard for high-level insights and intent mapping.
-- **`components/ToolsLibrary.tsx`**: Library view with code inspection and mock testing.
-- **`components/LocationFinder.tsx`**: Wrapper for the Trip Planner location search UI.
-- **`components/LocationAutocomplete.tsx`**: Reusable autocomplete component with portal-based rendering and scroll locking.
-- **`components/TransportModeSelector.tsx`**: Wrapper for the transport mode selection UI.
-- **`components/ModeDropdown.tsx`**: Reusable dropdown component for selecting transport modes.
-- **`components/VideoMessage.tsx`**: Secure video player component using Blob URL fetching.
-- **`services/orchestrator.ts`**: Client-side AI runtime and tool execution.
-- **`services/evaluation.ts`**: Evaluation logic (Scenario Gen, Sim, Scoring).
-- **`services/watchtower.ts`**: Batch analysis service for intent clustering and insights.
-- **`services/mockAgentService.ts`**: Architect backend (Chat & JSON Gen).
-- **`services/tools.ts`**: Registry of executable tools. See **[TOOLS.md](./TOOLS.md)** for detailed documentation.
-- **`services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
-- **`Dockerfile`**: Multi-stage build configuration (Node.js Build -> Node.js Serve).
-- **`server.js`**: Node.js/Express backend for API proxying and static file serving.
-- **`services/config.ts`**: Helper to retrieve API keys (Deprecated/Removed in favor of backend proxy).
+### 1. Frontend (`src/`)
+- **`src/types.ts`**: Source of Truth. Defines `Agent`, `Tool`, `ChatMessage`, `EvaluationReport`, `WatchtowerAnalysis`, etc.
+- **`src/App.tsx`**: Application Root. Manages routing, global agent state, and LocalStorage persistence.
+- **`src/components/AgentBuilder.tsx`**: Main workspace for creation and testing. Handles the "Build" and "Test" phases.
+- **`src/components/AgentDiagram.tsx`**: Recursive tree visualization.
+- **`src/components/AgentRegistry.tsx`**: Dashboard for auditing history and running evaluations.
+- **`src/components/Watchtower.tsx`**: Observability dashboard for high-level insights and intent mapping.
+- **`src/components/ToolsLibrary.tsx`**: Library view with code inspection and mock testing.
+- **`src/components/LocationFinder.tsx`**: Wrapper for the Trip Planner location search UI.
+- **`src/components/LocationAutocomplete.tsx`**: Reusable autocomplete component with portal-based rendering and scroll locking.
+- **`src/components/TransportModeSelector.tsx`**: Wrapper for the transport mode selection UI.
+- **`src/components/ModeDropdown.tsx`**: Reusable dropdown component for selecting transport modes.
+- **`src/components/VideoMessage.tsx`**: Secure video player component using Blob URL fetching.
+- **`src/services/orchestrator.ts`**: Client-side AI runtime and tool execution.
+- **`src/services/evaluation.ts`**: Evaluation logic (Scenario Gen, Sim, Scoring).
+- **`src/services/watchtower.ts`**: Batch analysis service for intent clustering and insights.
+- **`src/services/mockAgentService.ts`**: Architect backend (Chat & JSON Gen).
+- **`src/services/tools.ts`**: Registry of executable tools. See **[TOOLS.md](./TOOLS.md)** for detailed documentation.
+- **`src/services/storage.ts`**: LocalStorage wrapper with Date hydration logic.
 
-### 2. Backend (Node.js / Express)
+### 2. Backend (`server/`)
 - **Runtime**: Node.js 18+
 - **Framework**: Express
 - **Purpose**: Proxies requests to Vertex AI, handles authentication (ADC), and serves static assets in production.
 - **Key Files**:
-  - `server.js`: Main entry point. Configured with **50MB Payload Limit** to handle rich media history.
+  - `server/index.js`: Main entry point (renamed from `server.js`). Configured with **50MB Payload Limit** to handle rich media history.
   - `Dockerfile`: Multi-stage build (Node.js build -> Node.js runtime).
+
+### 3. Documentation (`docs/`)
+- `IMPLEMENTATION.md`, `CHANGELOG.md`, `TOOLS.md`, `PLAN.md`.
+
+### 4. Scripts (`scripts/`)
+- `env.sh`, `test_*.js`, `debug-*.js`.
 
 ### 3. Frontend (React + Vite)
 - **Framework**: React 18
@@ -171,11 +175,13 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 ## Vertex AI Integration
 - **Global Endpoints**: Used for `gemini-2.0-flash-exp`, `gemini-1.5-pro`, etc.
 - **Regional Endpoints**: Used for `veo-2.0` and `imagen-3.0` (e.g., `us-central1`).
-- **Routing**: `server.js` handles routing based on the requested model.
+- **Routing**: `server/index.js` handles routing based on the requested model.
 
 ---
 
 ## 🛠 Tools Registry
+
+**Source File**: [`src/services/tools.ts`](../src/services/tools.ts)
 
 For a comprehensive list of all available tools, including their parameters and usage, please refer to **[TOOLS.md](./TOOLS.md)**.
 

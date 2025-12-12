@@ -1,5 +1,7 @@
 # 🛠 Tools Registry
 
+**Source File**: [`src/services/tools.ts`](../src/services/tools.ts)
+
 This document provides a comprehensive reference for all executable tools available in the Agent Builder. These tools can be assigned to agents to extend their capabilities beyond simple text generation.
 
 ## 📚 Table of Contents

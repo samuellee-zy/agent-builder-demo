@@ -15,7 +15,7 @@ const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || process.env.PROJECT_ID;
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Vertex AI Clients
 // We need separate clients for Global and Regional endpoints

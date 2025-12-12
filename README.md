@@ -62,8 +62,15 @@
 *   **Build Tool:** Vite
 *   **AI:** Google GenAI SDK (`@google/genai`)
 
+## 📂 File Structure
+- **`docs/`**: Documentation (Implementation, Changelog, Tools).
+- **`src/`**: Frontend React application.
+- **`server/`**: Node.js backend.
+- **`scripts/`**: Utility scripts.
+
 ## 📖 Documentation
-For a deep dive into the code structure, file responsibilities, undo architecture, and orchestration patterns, please refer to **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.
+For a deep dive into the code structure, file responsibilities, undo architecture, and orchestration patterns, please refer to **[docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md)**.
+See **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** for version history and **[docs/TOOLS.md](./docs/TOOLS.md)** for tool documentation.
 
 ---
 

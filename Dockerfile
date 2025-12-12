@@ -25,11 +25,11 @@ COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
 # Copy server and built assets
-COPY server.js ./
+COPY server/ ./server/
 COPY --from=build /app/dist ./dist
 
 # Expose port 8080
 EXPOSE 8080
 
 # Start the server
-CMD ["node", "server.js"]
+CMD ["node", "server/index.js"]

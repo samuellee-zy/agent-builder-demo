@@ -4,6 +4,16 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12/12/2025 - Codebase Rearchitecture
+- **Folder Structure**:
+  - **`src/`**: Moved all React frontend code (`components`, `services`, `App.tsx`) to `src/` for better organization.
+  - **`server/`**: Moved `server.js` to `server/index.js` to isolate backend logic.
+  - **`docs/`**: Moved all markdown documentation (`IMPLEMENTATION.md`, `CHANGELOG.md`, `TOOLS.md`, `PLAN.md`) to `docs/`.
+  - **`scripts/`**: Moved utility scripts (`env.sh`, `test_*.js`) to `scripts/`.
+- **Configuration Updates**:
+  - Updated `Dockerfile`, `package.json`, `vite.config.ts`, and `index.html` to support the new structure.
+  - Updated `server/index.js` to correctly serve static assets from `../dist`.
+
 ### 12/12/2025 - Report Formatter & Mock Tester
 - **Report Formatter Tool**:
   - **New Tool**: Added `publish_report` utility that allows agents to generate structured, rich-text reports.

@@ -5,12 +5,12 @@
 ## Proposed Changes
 
 ### 1. [NEW] `publish_report` Tool
-- **File**: `services/tools.ts`
+- **File**: `src/services/tools.ts`
 - **Function**: `publish_report(title, content, summary)`
 - **Purpose**: Allows agents to explicitly "publish" a structured report rather than just streaming text.
 - **Behavior**: Returns a success message to the agent, but triggers a UI event to render a "Report Card".
 
-### 2. [MODIFY] `components/AgentBuilder.tsx`
+### 2. [MODIFY] `src/components/AgentBuilder.tsx`
 - **Report Card UI**:
   - Detects `publish_report` tool calls in the chat stream.
   - Renders a distinct, styled card (e.g., `bg-slate-800`, border, shadow).
@@ -23,7 +23,7 @@
       - **Tables**: Full GFM table support.
     - **Styling**: Use `prose` (Tailwind Typography) or custom styles to ensure it looks like a professional document.
 
-### 3. [MODIFY] `components/ToolsLibrary.tsx`
+### 3. [MODIFY] `src/components/ToolsLibrary.tsx`
 - **Mock Tester UI**:
   - Import `react-markdown` and `remark-gfm`.
   - In `renderToolInspector`, check if `selectedTool.id === 'publish_report'`.
