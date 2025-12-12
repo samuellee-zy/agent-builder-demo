@@ -5,12 +5,13 @@ import { AgentDiagram } from './AgentDiagram';
 import { AVAILABLE_TOOLS_REGISTRY } from '../services/tools';
 import { VideoMessage } from './VideoMessage';
 import { EvaluationService } from '../services/evaluation';
-import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 
 interface AgentRegistryProps {
   agents: Agent[];
   onDeleteAgent: (id: string) => void;
   onUpdateAgent?: (agent: Agent) => void; // New prop to save evaluations
+    onEditAgent?: (agent: Agent) => void; // New prop to edit agent
 }
 
 // Date formatter helper
@@ -30,7 +31,7 @@ const formatDate = (date: Date | string, includeTime = false) => {
   return dateStr;
 };
 
-export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent }) => {
+export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent, onEditAgent }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeTab, setActiveTab] = useState<'architecture' | 'history' | 'evaluation'>('architecture');
   
@@ -662,6 +663,15 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
              {/* Content Switcher */}
              {activeTab === 'architecture' && (
                     <div className="flex-1 flex overflow-hidden relative min-h-[400px] lg:min-h-0">
+                        {onEditAgent && selectedAgent && (
+                            <button
+                                onClick={() => onEditAgent(selectedAgent)}
+                                className="absolute top-4 right-4 z-40 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all hover:scale-105"
+                            >
+                                <Pencil size={16} />
+                                <span className="hidden sm:inline">Edit in Builder</span>
+                            </button>
+                        )}
                         <div className="flex-1 h-full overflow-auto p-4 lg:p-10 flex items-center justify-center bg-slate-950/50 touch-pan-x touch-pan-y">
                             <div className="transform scale-75 lg:scale-90 origin-center">
                             <AgentDiagram 

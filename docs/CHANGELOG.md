@@ -4,6 +4,11 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 13/12/2025 - Registry to Builder Edit Flow
+- **Seamless Navigation**: Added "Edit in Builder" button to the Agent Registry Architecture view.
+- **State Integration**: Wired Registry directly to the Visual Builder, allowing users to select an existing agent and immediately start refining its design.
+- **Mobile Optimized**: The edit button is responsive, showing only an icon on mobile devices to save space (`z-40` layering ensures visibility).
+
 ### 13/12/2025 - Global Dynamic Optimization (Fluid Design)
 - **Global Fluid Responsiveness**:
   - **Fluid CSS**: Replaced fixed pixel widths with `clamp()`, `min()`, and `max()` across the entire application.

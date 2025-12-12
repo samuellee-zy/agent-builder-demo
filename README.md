@@ -20,6 +20,7 @@
 *   **Adaptive Layouts:** Auto-fit grids in Tools Library & Watchtower automatically reflow content.
 *   **Dynamic Diagrams:** Agent nodes shrink/grow (`140px` - `200px`) to fit any screen width.
 *   **Mobile Inspector:** Full-screen configuration panels for easy editing on the go.
+*   **Seamless Editing:** "Edit in Builder" button in Registry allows instant refinement of deployed agents.
 
 ### 🎨 Visual Studio
 *   **Recursive Diagram Builder:** Visualize hierarchy with Sequential/Concurrent layouts.

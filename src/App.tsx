@@ -125,6 +125,7 @@ const App: React.FC = () => {
                 agents={agents} 
                 onDeleteAgent={handleDeleteAgent} 
                 onUpdateAgent={handleAgentCreated}
+            onEditAgent={handleSelectAgent}
             />
         )}
         

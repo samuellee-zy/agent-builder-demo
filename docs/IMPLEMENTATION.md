@@ -135,6 +135,9 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - **Mobile Responsiveness:**
     - **Master-Detail Stack:** On mobile, the layout switches from a side-by-side view to a stacked approach. The "Sidebar" (Agent Info & Tabs) serves as the main view, with content (Architecture/History) accessible via tabs.
     - **Navigation:** Implemented robust back-navigation logic to prevent "blank screen" states when returning to the registry list.
+  - **Edit Integration:**
+    - **Direct Handoff:** Added an "Edit in Builder" button in the Architecture view that invokes `handleSelectAgent` from `App.tsx`.
+    - **Context Preservation:** Instantly loads the selected agent into the Visual Builder state, allowing for seamless iteration on deployed agents.
 
 ### 7. The Watchtower (Observability Engine) (`src/services/watchtower.ts`)
 A centralized observability dashboard for analyzing agent performance in the wild.
