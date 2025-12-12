@@ -386,8 +386,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         };
 
         setArchitectMessages(prev => {
-            const lastMsg = prev[prev.length - 1];
-            const isLastMsgSync = lastMsg && lastMsg.content === "I've synced your manual changes. What would you like to do next?";
+            // FIX: Filter out hidden messages to find the last VISIBLE message
+            const visibleMessages = prev.filter(m => !m.hidden);
+            const lastVisibleMsg = visibleMessages[visibleMessages.length - 1];
+            const isLastMsgSync = lastVisibleMsg && lastVisibleMsg.content === "I've synced your manual changes. What would you like to do next?";
 
             if (isLastMsgSync) {
                 return [...prev, stateMessage];
@@ -749,8 +751,19 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   );
 
   const renderArchitectChat = () => (
-    <div className="flex flex-col h-full bg-slate-900 animate-in fade-in duration-300">
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex flex-col h-full bg-slate-900 animate-in fade-in duration-300 relative">
+          {/* Navigation Header */}
+          <div className="absolute top-4 right-6 z-10">
+              <button
+                  onClick={() => setStep('review')}
+                  className="flex items-center gap-2 bg-slate-800/80 backdrop-blur-sm hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-lg border border-slate-700 shadow-lg transition-all text-xs font-bold uppercase tracking-wide"
+              >
+                  <PencilRuler size={14} />
+                  <span>Back to Builder</span>
+              </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 pt-16">
               {architectMessages.filter(m => !m.hidden).map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] rounded-2xl px-5 py-3.5 shadow-md ${

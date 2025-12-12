@@ -33,6 +33,7 @@ A state-machine driven component managing the lifecycle of an agent.
     - **New Agents**: Assigned a unique UUID (`draftId`) on creation. This ensures a blank slate for every "New Agent" action, preventing history leaks from previous sessions.
     - **Migration**: Upon successful build, the chat history is automatically migrated from `architect_chat_${draftId}` to `architect_chat_${agentId}`.
   - **UX Pattern:** On load, the "Hero Input" is shown to provide a clean entry point, but the history is silently loaded in the background. Interacting with the input or clicking "Consult Architect" restores the full session.
+  - **Navigation:** Includes a "Back to Builder" button in the Architect Chat view to easily return to the Visual Diagram after refining the design.
 - **Enhance Workflow:**
   - Integrated **"Enhance"** button that sends the current Agent Instructions + User Feedback to `gemini-2.5-flash` (Fixed Model).
   - Returns a rewritten, professional Markdown version of the instructions.
@@ -40,6 +41,7 @@ A state-machine driven component managing the lifecycle of an agent.
   - Allows users to jump from the Visual Diagram back to the Chat.
   - **Hidden Sync:** Injects a hidden `[SYSTEM UPDATE]` message containing the current JSON state of the agent tree. This ensures the AI Architect is aware of any manual edits (name changes, tool additions) made in the UI.
   - **Deduping:** Prevents chat clutter by checking for existing confirmation messages before adding new ones.
+    - **Fix (12/12/2025):** Updated logic to check the last *visible* message (ignoring hidden system messages) to ensure accurate deduping even after state syncs.
 - **Undo/Revert Architecture:** Maintains a `history` stack of the agent tree. Destructive actions (delete, add sub-agent) call `saveCheckpoint()` first. `handleUndo` restores the previous state.
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
@@ -58,6 +60,7 @@ The recursive visualization engine for the agent tree.
 ### 4. The Orchestration Engine (`src/services/orchestrator.ts`)
 The runtime "Brain" running in the browser.
 - **Coordinator Pattern:** Dynamically injects `delegate_to_agent` tools for agents with children.
+- **Concurrent Execution:** Refactored to use `Promise.all` for processing tool calls. This allows the Coordinator to delegate tasks to multiple sub-agents simultaneously (e.g., "Ask Agent A and Agent B"), significantly reducing total latency for parallelizable workflows.
 - **Recursive Execution:** Handles nested agent loops and message passing.
 - **History Compression:** Automatically strips large Base64 image strings (`data:image/...`) from the conversation history before sending it to the model to prevent Token Limit errors. **Crucially**, for `veo-*` models (Image-to-Video), it now intelligently scans the *uncompressed* history to extract and pass the most recent generated image as a direct API parameter, ensuring context is preserved despite compression.
 - **Echo Prevention (Silent Handoff):** 

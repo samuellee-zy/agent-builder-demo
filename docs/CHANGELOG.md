@@ -4,6 +4,14 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 12/12/2025 - UX & Performance Fixes
+- **Concurrent Workflow Execution**:
+  - **Parallel Processing**: Refactored `AgentOrchestrator` to use `Promise.all` for tool execution.
+  - **Benefit**: Agents can now delegate to multiple sub-agents simultaneously (e.g., "Research topic X and topic Y"), significantly reducing wait times for complex parallel tasks.
+- **Architect Chat Improvements**:
+  - **Navigation**: Added a "Back to Builder" button in the Architect Chat header, allowing users to easily return to the visual diagram after refining their agent.
+  - **Duplicate Sync Fix**: Resolved a bug where the "Synced your manual changes" confirmation message would appear twice. The logic now correctly checks the last *visible* message, ignoring hidden system state updates.
+
 ### 12/12/2025 - Codebase Rearchitecture
 - **Folder Structure**:
   - **`src/`**: Moved all React frontend code (`components`, `services`, `App.tsx`) to `src/` for better organization.

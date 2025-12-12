@@ -332,8 +332,9 @@ RULES:
             if (functionCalls && functionCalls.length > 0) {
                 const functionResponses: Part[] = [];
 
-                for (const call of functionCalls) {
-                    if (!call) continue;
+              // FIX: Concurrent Execution using Promise.all
+              const toolPromises = functionCalls.map(async (call: any) => {
+                if (!call) return null;
                     
                     const { name, args: rawArgs } = call;
                     const args = (rawArgs || {}) as Record<string, any>;
@@ -366,13 +367,17 @@ RULES:
 
                     if (this.onToolEnd) this.onToolEnd(agent.name, name, functionResult);
 
-                    functionResponses.push({
+                  return {
                         functionResponse: {
                             name: name,
                             response: { result: functionResult }
                         }
-                    });
-                }
+                    };
+                });
+
+              const results = await Promise.all(toolPromises);
+              const validResults = results.filter((r: any) => r !== null) as Part[];
+              functionResponses.push(...validResults);
 
                 currentContents.push({ role: 'user', parts: functionResponses });
                 
