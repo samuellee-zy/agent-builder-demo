@@ -52,6 +52,9 @@ const App: React.FC = () => {
     init();
   }, []);
 
+  // Draft Session ID (for fresh "New Agent" sessions)
+  const [draftId, setDraftId] = useState<string>(() => `draft-${Date.now()}`);
+
   const handleCreateAgent = (newAgent: Agent) => {
     setAgents(prev => {
       const exists = prev.find(a => a.id === newAgent.id);
@@ -84,6 +87,7 @@ const App: React.FC = () => {
         recentAgents={agents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)}
         onNewAgent={() => {
           setSelectedAgentId(null);
+          setDraftId(`draft-${Date.now()}`); // Generate new unique draft ID
           setBuilderResetKey(prev => prev + 1); // Force new session
           setActiveTab('aop'); // Use AOP for Builder
         }}
@@ -117,6 +121,7 @@ const App: React.FC = () => {
             onNavigate={setActiveTab}
             onNewAgent={() => {
               setSelectedAgentId(null);
+              setDraftId(`draft-${Date.now()}`);
               setBuilderResetKey(prev => prev + 1);
               setActiveTab('aop');
             }}
@@ -165,7 +170,7 @@ const App: React.FC = () => {
             key={`${selectedAgentId || 'new'}-${builderResetKey}`}
             initialAgent={agents.find(a => a.id === selectedAgentId)}
             onAgentCreated={handleCreateAgent}
-            draftId={selectedAgentId || undefined}
+            draftId={selectedAgentId ? undefined : draftId}
           />
         )}
       </main>
