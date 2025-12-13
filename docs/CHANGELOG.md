@@ -22,11 +22,24 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Agent Registry**:
   - **Responsive Grid**: Refined grid breakpoints (`grid-cols-1` on mobile) to ensure agent cards use full width for better readability on small screens.
 
+#### Evaluation Module Enhancements
+- **Concurrent Execution**:
+  - Implemented a **Smart Queue** system to run evaluations in parallel batches (Concurrency Limit: 5).
+  - Significantly reduces total test duration while respecting API rate limits.
+- **Configuration UI**:
+  - Added a "New Evaluation" panel allowing users to configure:
+    - **Judge Model**: Select from available models (Default: `gemini-2.5-flash` for speed).
+    - **Test Count**: Slider control (1-20 scenarios).
+- **Session History**:
+  - Added a sidebar to the Evaluation tab listing all past evaluation reports for the agent.
+  - Allows users to review historical performance and scores.
+
 #### Registry UX & Animation Polish
 - **Agent Registry Enhancements**:
   - **Search Bar**: Added real-time search by name, description, and tags.
   - **Tag Filter**: Implemented a responsive dropdown to filter agents by specific tags.
   - **Tag Visibility**: Agent cards now display their top 3 tags with a "+N" indicator for overflow.
+
 #### UI Polish
 - **Agent Registry Grid Optimization**: Adjusted grid breakpoints to improve readability on smaller laptops (13-inch / 1280px).
     - Changed 4-column layout trigger from `xl` (1280px) to `2xl` (1536px).

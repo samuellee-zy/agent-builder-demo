@@ -21,12 +21,23 @@ interface OverviewProps {
     onNewAgent: () => void;
 }
 
+/**
+ * @file src/components/Overview.tsx
+ * @description The "Command Center" Dashboard.
+ * 
+ * Provides a high-level view of the entire system's health.
+ * - **Stats**: Active Agents, Total Sessions, Global Scores.
+ * - **Live Ticker**: Simulates real-time status of underlying AI services.
+ * - **Activity Feed**: Shows recent events across all agents.
+ */
+
 export const Overview: React.FC<OverviewProps> = ({ agents, onNavigate, onNewAgent }) => {
     // Calculate Stats
     const totalSessions = agents.reduce((acc, a) => acc + (a.sessions?.length || 0), 0);
 
     // Calculate intelligent "System Satisfaction" score
-    // Purely synthetic for now based on Watchtower analysis existence + mock logic or actual scores if available
+    // LOGIC: Aggregates the 'globalScore' from all agents that have been analyzed by Watchtower.
+    // If no agents are analyzed, defaults to a neutral 75.
     const analyzedAgents = agents.filter(a => a.watchtowerAnalysis);
     const avgScore = analyzedAgents.length > 0
         ? Math.round(analyzedAgents.reduce((acc, a) => acc + (a.watchtowerAnalysis?.globalScore || 0), 0) / analyzedAgents.length)

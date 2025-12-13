@@ -101,6 +101,7 @@ export class AgentOrchestrator {
         const isTransient = status === 503 || errorMessage.includes('overloaded');
         
         if (isRateLimit) {
+          // STRATEGY: Respect "retry-after" if provided, otherwise use a conservative floor.
             // Check for explicit "retry in X s" message
             const match = errorMessage.match(/retry in ([0-9.]+)s/);
             let waitTime = 6000; // Default minimum
@@ -118,11 +119,12 @@ export class AgentOrchestrator {
             await new Promise(resolve => setTimeout(resolve, waitTime));
             // Do not double delay for rate limits, just stick to safe wait times
         } else if (isTransient) {
+          // STRATEGY: Standard Exponential Backoff for temporary server issues.
             console.warn(`API Busy (${status}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             delay *= 2; // Exponential backoff for transient errors
         } else {
-            // Unknown error, maybe just a blip, retry once or twice then fail
+          // STRATEGY: Retry a few times for unknown errors (network blips), but fail fast.
             if (i > 2) throw error;
             console.warn(`API Error (${errorMessage}). Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -366,14 +368,17 @@ RULES:
 
           const functionCalls = responseContent.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
             
+          // Append Model's response to history (it might contain text OR tool calls)
             if (responseContent.parts) {
                 currentContents.push({ role: 'model', parts: responseContent.parts });
             }
 
+          // BRANCH A: Tool Execution Detected
             if (functionCalls && functionCalls.length > 0) {
                 const functionResponses: Part[] = [];
 
-              // FIX: Concurrent Execution using Promise.all
+              // PERFORMANCE: Execute all tool calls CONCURRENTLY.
+              // This is crucial for "Parallel Function Calling" where the model requests multiple things at once.
               const toolPromises = functionCalls.map(async (call: any) => {
                 if (!call) return null;
                     
@@ -385,20 +390,22 @@ RULES:
                     let functionResult;
 
                     if (name === 'delegate_to_agent') {
-                      // RECURSION: The tool call triggers a new AgentOrchestrator loop for the sub-agent
+                      // RECURSION MAGIC:
+                      // If the tool is 'delegate_to_agent', we recursively start a NEW Orchestrator loop
+                      // for the target sub-agent. This creates the "Tree" of execution.
                         const subAgentName = args['agentName'] as string;
                         const task = args['task'] as string;
                         const subAgent = agent.subAgents?.find(sa => sa.name === subAgentName);
 
                         if (subAgent) {
                             const rawResult = await this.runAgentLoop(subAgent, [], task);
-                            // Tag the result so the Coordinator knows the user already saw it
+                          // TRICK: We wrap the result in a System Tag so the Coordinator knows the user already saw it.
                             functionResult = `[SYSTEM: The user has already seen this response from sub-agent '${subAgentName}'. DO NOT REPEAT IT.]\n\n${rawResult}`;
                         } else {
                             functionResult = `Error: Agent '${subAgentName}' not found. Available: ${agent.subAgents?.map(s => s.name).join(', ')}`;
                         }
                     } else {
-                      // STANDARD TOOL EXECUTION
+                      // STANDARD TOOL EXECUTION: Run the JS function associated with the tool.
                         const toolDef = AVAILABLE_TOOLS_REGISTRY[Object.keys(AVAILABLE_TOOLS_REGISTRY).find(k => AVAILABLE_TOOLS_REGISTRY[k].functionDeclaration.name === name) || ''];
                         
                         if (toolDef) {
@@ -418,20 +425,24 @@ RULES:
                     };
                 });
 
+              // Wait for all tools to finish (parallel execution)
               const results = await Promise.all(toolPromises);
               const validResults = results.filter((r: any) => r !== null) as Part[];
               functionResponses.push(...validResults);
 
+              // Feed Tool Outputs back to the Model (it needs to see the results to continue)
                 currentContents.push({ role: 'user', parts: functionResponses });
                 
             } else {
+              // BRANCH B: No Tools, just text.
               const text = responseContent.parts?.map((p: any) => p.text).join('') || '';
                 
                 if (text) {
                     finalResponse = text;
-                    keepGoing = false;
+                  keepGoing = false; // Stop the loop, we have an answer.
                     if (this.onAgentResponse) this.onAgentResponse(agent.name, finalResponse);
                 } else {
+                  // Edge case: Empty response? Stop to avoid infinite loops.
                     keepGoing = false;
                 }
             }

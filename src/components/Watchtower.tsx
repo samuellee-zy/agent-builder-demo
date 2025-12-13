@@ -56,8 +56,11 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
      * Triggers the Watchtower Analysis Service.
      * Sends the agent's session history to Gemini for offline evaluation.
      * 
-     * Note: Analysis is performed on the *last 20 sessions* to respect token limits.
-     * It uses the "Reasoning" model (Gemini 3 Pro) for high-quality insights.
+     * STRATEGY:
+     * 1. Extract recent sessions (max 20 to fit context window).
+     * 2. Call `WatchtowerService.runAnalysis` which prompts Gemini 3 Pro.
+     * 3. Receive structured JSON (intents, recommendations, sentiment).
+     * 4. Update the Agent model with the new analysis to persist it.
      */
   const handleRunAnalysis = async () => {
     if (!selectedAgent) return;

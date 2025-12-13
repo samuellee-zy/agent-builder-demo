@@ -1,27 +1,29 @@
-# Stage 1: Build the React application
-FROM node:18-alpine AS build
-
+# ==========================================
+# STAGE 1: Build the React Application
+# This stage builds the frontend React application.
+# We use a Node.js base image to install dependencies and run the build process.
+# The output (static files) will be copied to the next stage.
+# ==========================================
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Install dependencies (cached if package.json hasn't changed)
+# Copy package.json and package-lock.json first to leverage Docker's layer caching.
+# If these files don't change, npm install won't re-run on subsequent builds.
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy the rest of the application code
+# Copy source code and build
+# Copy the rest of the application code and then build the React app.
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Stage 2: Serve with Node.js
+# ==========================================
+# STAGE 2: Production Server
+# This stage sets up a lightweight Node.js server to serve the built React app
+# and handle API requests. It only includes production dependencies.
+# ==========================================
 FROM node:18-alpine
-
-WORKDIR /app
-
-# Copy package files and install production dependencies
-COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
 # Copy server and built assets

@@ -48,8 +48,10 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Dynamic Z-Index: When menu is open, lift this node above everything else (siblings/children)
+  // This prevents the menu from being clipped or hidden by subsequent nodes in the stacking context.
   const nodeZIndex = showAddMenu ? 'z-50' : 'z-10';
 
+  // Handle clicking outside the menu to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -80,7 +82,8 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
   const children = agent.subAgents || [];
 
   // --- Connector Logic ---
-  // Renders the vertical line connecting to the parent in a sequential list
+  // Renders the vertical line connecting to the parent in a sequential list.
+  // We only render this if we are inside a Group running in 'Sequential' mode.
   const renderSequentialConnector = () => {
     if (parentType === 'group' && parentNodeMode === 'sequential' && depth > 0) {
         return (

@@ -41,12 +41,14 @@
 ### 📊 Automated Evaluation (LLM-as-a-Judge)
 *   **Scenario Generation:** AI automatically invents realistic test scenarios based on agent goals.
 *   **User Simulation:** Runs fully automated conversations between a "User Simulator" and your Agent.
+*   **Concurrent Execution:** Runs tests in parallel batches (Smart Queue) for rapid feedback.
 *   **Performance Metrics:** 
     *   **Response Time:** Visualized latency (ms) per chat bubble.
     *   **Accuracy:** Factual correctness of responses.
     *   **User Satisfaction:** Sentiment analysis of the interaction.
     *   **Stability:** Error rates and API reliability.
-*   **Visual Reports:** Detailed dashboards with scorecards and transcript analysis.
+*   **Session History:** Sidebar access to past evaluation reports and scores.
+*   **Visual Reports:** Detailed dashboards with scorecards, transcript analysis, and rich media capture.
 
 ### 🔭 Watchtower (Observability)
 *   **Intent Clustering:** Automatically groups user sessions into distinct Intents (e.g., "Refunds", "Support").

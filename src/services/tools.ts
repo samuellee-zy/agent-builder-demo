@@ -12,9 +12,17 @@ import { Type } from '@google/genai';
 
 /**
  * Registry of all available tools, keyed by their ID.
- * To add a new tool:
- * 1. Define it here with a unique key.
- * 2. Ensure it has a valid `functionDeclaration` and `executable`.
+ * 
+ * HOW TO ADD A NEW TOOL:
+ * 1. Define a unique ID (e.g., 'my_new_tool').
+ * 2. Define the `functionDeclaration`: This is the JSON Schema sent to the LLM.
+ *    - It MUST match the parameters expected by your executable.
+ *    - Use clear descriptions; the LLM uses these to decide WHEN to call the tool.
+ * 3. Define the `executable`: The actual TypeScript/JavaScript logic.
+ *    - Receives arguments as a typed object.
+ *    - Should return a String or JSON String (LLMs parse strings best).
+ * 
+ * NOTE: This registry is imported by `orchestrator.ts` to resolve tool calls at runtime.
  */
 export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
   /**

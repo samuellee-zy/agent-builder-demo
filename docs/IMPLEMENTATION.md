@@ -125,9 +125,10 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - **Quantitative:** API Latency (ms) per turn, Error Rate (%).
   - **Qualitative (1-10):** Accuracy, User Satisfaction, System Stability.
 - **Concurrency Strategy:** 
-  - Runs tests in **Parallel** if scenario count <= 3 (Fast).
-  - Runs tests in **Sequential** batches if scenario count > 3 (Safe, prevents Rate Limits).
+  - **Smart Queue:** Implements a custom `limitConcurrency` helper (default limit: 5) to balance speed with API rate limits.
+  - **Configurable:** Users can set the number of test scenarios (1-20) and the Judge Model via the UI.
 - **Latency Tracking:** `ChatMessage` now includes a `latency` field, visualized in the UI.
+- **Session History:** Evaluated sessions are persisted and accessible via a sidebar in the Evaluation tab.
 
 ### 6. Agent Registry & Persistence (`src/components/AgentRegistry.tsx`, `src/services/storage.ts`)
 - **Data Model:** `Agent` objects containing:

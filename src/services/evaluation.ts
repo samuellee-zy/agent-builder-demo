@@ -383,6 +383,54 @@ Reply as the user in the scenario: ${scenario}`
   }
 
   /**
+   * Helper to limit concurrency of async operations.
+   * Simple implementation of p-limit.
+   * 
+   * @param limit - Max number of concurrent tasks (e.g. 5).
+   * @param tasks - Array of task factories (functions that return a Promise).
+   * @returns Array of results.
+   */
+  private limitConcurrency<T>(limit: number, tasks: (() => Promise<T>)[]): Promise<T[]> {
+    let active = 0; // Currently running tasks
+    let current = 0; // Index of next task to start
+    const results: T[] = new Array(tasks.length);
+
+    return new Promise((resolve, reject) => {
+      // Recursive worker function
+      const next = () => {
+        // Base Case: All tasks started and finished
+        if (current >= tasks.length && active === 0) {
+          resolve(results);
+          return;
+        }
+
+        // Fill the queue up to the limit
+        while (active < limit && current < tasks.length) {
+          const index = current++;
+          active++;
+
+          // Execute task
+          tasks[index]()
+            .then(result => {
+              results[index] = result;
+            })
+            .catch(err => {
+              console.error(`Task ${index} failed:`, err);
+              // We don't verify reject here to allow mixed success/failure
+              // In production we might want to track this error in the result
+            })
+            .finally(() => {
+              active--; // Slot freed
+              next(); // Check if we can start more
+            });
+        }
+      };
+
+      next();
+    });
+  }
+
+  /**
    * Aggregates results into a full report.
    * Calculates overall averages and compiles individual session details.
    * 
@@ -400,30 +448,33 @@ Reply as the user in the scenario: ${scenario}`
     const scenarios = await this.generateScenarios(agent, config.scenarioCount);
     const sessions: EvaluationSession[] = [];
 
-    // Concurrency Logic with Stagger
-    if (config.scenarioCount <= 3) {
-      onProgress(`Running ${config.scenarioCount} simulations in parallel...`);
-      
-      // Stagger start times by 2000ms to avoid instant rate limiting on start
-      const promises = scenarios.map(async (scenario, index) => {
-          await new Promise(resolve => setTimeout(resolve, index * 2000));
-          return this.runSimulation(agent, scenario, config.simulatorModel);
-      });
+    onProgress(`Queueing ${scenarios.length} simulations (Concurrency: 5)...`);
 
-      const results = await Promise.all(promises);
-      sessions.push(...results);
-    } else {
-      for (let i = 0; i < scenarios.length; i++) {
-        onProgress(`Running simulation ${i + 1}/${scenarios.length}...`);
-        const result = await this.runSimulation(agent, scenarios[i], config.simulatorModel);
-        sessions.push(result);
-      }
-    }
+    // Create task factories
+    const tasks = scenarios.map((scenario, i) => async () => {
+      onProgress(`Starting simulation ${i + 1}/${scenarios.length}: "${scenario.slice(0, 30)}..."`);
+      const result = await this.runSimulation(agent, scenario, config.simulatorModel);
+      onProgress(`Completed simulation ${i + 1}/${scenarios.length}`);
+      return result;
+    });
+
+    // Run with concurrency limit of 5
+    const results = await this.limitConcurrency(5, tasks);
+
+    // Filter out undefined results (failed tasks)
+    results.forEach(r => {
+      if (r) sessions.push(r);
+    });
 
     onProgress("Compiling Report...");
 
     // Calculate Averages
     const totalSessions = sessions.length;
+    // Prevent division by zero if all fail
+    if (totalSessions === 0) {
+      throw new Error("All evaluation sessions failed.");
+    }
+
     const avgResponse = sessions.reduce((sum, s) => sum + (s.metrics.find(m => m.name === 'Response Time')?.score || 0), 0) / totalSessions;
     const avgAccuracy = sessions.reduce((sum, s) => sum + (s.metrics.find(m => m.name === 'Accuracy')?.score || 0), 0) / totalSessions;
     const avgSatisfaction = sessions.reduce((sum, s) => sum + (s.metrics.find(m => m.name === 'User Satisfaction')?.score || 0), 0) / totalSessions;

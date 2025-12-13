@@ -55,7 +55,8 @@ export class WatchtowerService {
     const sessions = agent.sessions || [];
     
     // 1. Filter for valid sessions (at least 2 messages)
-    // Take max 20 recent sessions to respect token limits
+    // STRATEGY: Take max 20 recent sessions to respect token limits (Context Window Management).
+    // We sort by timestamp descending to analyze the FRESHEST data.
     const validSessions = sessions
         .filter(s => s.messages.length >= 2)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -66,6 +67,7 @@ export class WatchtowerService {
     }
 
     // 2. Prepare Transcripts
+    // We format each session into a clear block for the LLM to parse.
     const sessionData = validSessions.map((s, idx) => `
 --- SESSION ID: ${s.id} ---
 ${compressTranscript(s.messages)}

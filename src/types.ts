@@ -107,14 +107,20 @@ export interface ChatMessage {
 export type BuildStep = 'input' | 'building' | 'review' | 'testing';
 
 /**
- * Definition of a Tool available to agents.
+ * Defines an executable capability (Tool) available to agents.
+ * Maps to a function declaration in the AI Model.
  */
 export interface Tool {
+  /** Unique identifier (e.g., 'google_search'). */
   id: string;
+  /** Human-readable name (e.g., 'Google Search'). */
   name: string;
+  /** Description of what the tool does (used for RAG/Discovery). */
   description: string;
-  category: string;
+  /** Tags for categorization/filtering (e.g., 'Grounding', 'Utility'). */
   tags: string[];
+  /** @deprecated Use `tags` instead. Broad category. */
+  category?: string;
   /** The schema configuration sent to the Gemini API. */
   functionDeclaration: FunctionDeclaration; 
   /** The actual JavaScript implementation of the tool. */
@@ -162,25 +168,26 @@ export interface EvaluationMetric {
   reasoning: string;
 }
 
-export interface EvaluationSession {
-  id: string;
-  scenario: string;
-  transcript: ChatMessage[];
-  metrics: EvaluationMetric[];
-  stats: {
-    avgLatency: number;
-    errorRate: number; // Percentage 0-100
-  };
-}
-
+/**
+ * Represents a full "Runs" of the evaluation suite.
+ * Contains aggregate metrics and individual scenarios.
+ */
+/**
+ * Represents a full "Runs" of the evaluation suite.
+ * Contains aggregate metrics and individual scenarios.
+ */
 export interface EvaluationReport {
+  /** Unique ID for this report. */
   id: string;
+  /** (Optional) ID of the agent being evaluated. */
+  agentId?: string;
+  /** When the evaluation was run. */
   timestamp: Date;
-  config: {
-    simulatorModel: string;
-    scenarioCount: number;
-  };
-  sessions: EvaluationSession[];
+  /** Configuration used for this evaluation run. */
+  config: { simulatorModel: string, scenarioCount: number };
+  /**
+   * Quantitative summary stats.
+   */
   summary: {
     avgScore: number;
     avgResponseScore: number;
@@ -188,7 +195,44 @@ export interface EvaluationReport {
     avgSatisfaction: number;
     avgStability: number;
   };
+  /** List of all sessions in this report. */
+  sessions: EvaluationSession[];
 }
+
+/**
+ * A grouping of user interactions for a specific agent.
+ * Used for history replay.
+ */
+export interface EvaluationSession {
+  /** Sequential, user-friendly ID (e.g., "Session #1"). */
+  id: string;
+  /** The scenario script/intent being tested. */
+  scenario: string;
+  /** The chat history. */
+  transcript: ChatMessage[];
+  /** Metrics returned by the Judge. */
+  metrics: EvaluationMetric[];
+  /** Stats for this specific session. */
+  stats: {
+    avgLatency: number;
+    errorRate: number;
+  };
+  /** When this session occurred. */
+  timestamp?: string;
+}
+
+/**
+ * Output from the Watchtower Observability service.
+ * Represents a batch analysis of agent performance.
+ */
+// NOTE: Duplicate WatchtowerAnalysis definition removed. 
+// Use the one defined at line 148.
+
+/**
+ * A cluster of sessions that share a common user goal.
+ */
+// NOTE: Duplicate IntentGroup definition removed.
+// Use the one defined at line 129.
 
 /**
  * List of available Gemini models with metadata.

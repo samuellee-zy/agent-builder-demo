@@ -368,37 +368,56 @@ app.post('/api/generate', async (req, res) => {
     if (model.startsWith('imagen')) {
       const result = await generateImage(modelId, prompt, modelLocation);
       return res.json(result);
+      try {
+        // 1. Extract Model ID and Request Body
+        const { model, contents, systemInstruction, tools, toolConfig, generationConfig } = req.body;
+        const projectId = process.env.PROJECT_ID;
+
+        // 2. Validate Project Configuration
+        if (!projectId) {
+          console.error("❌ Stats: Missing PROJECT_ID");
+          return res.status(500).json({ error: "Server Configuration Error: PROJECT_ID is missing." });
     }
 
-    if (model.startsWith('veo')) {
-      const { image } = req.body; 
-      const result = await generateVideo(modelId, prompt, modelLocation, image);
-      return res.json(result);
+        // 3. Initialize Vertex AI Client
+        // Uses Application Default Credentials (ADC) automatically.
+        // On Cloud Run: Uses the Service Account.
+        // On Local: Uses `gcloud auth application-default login`.
+        const vertexAI = new VertexAI({ project: projectId, location: 'us-central1' });
+
+        // 4. Instantiate the Generative Model
+        const generativeModel = vertexAI.getGenerativeModel({
+          model: model || 'gemini-1.5-flash',
+          // Pass through critical configuration
+          systemInstruction,
+          tools,
+          toolConfig,
+          generationConfig
+        });
+
+        console.log(`[Proxy] Generating with model: ${model}`);
+
+        // 5. Call Google AI
+        const result = await generativeModel.generateContent({
+          contents,
+        });
+        const response = await result.response;
+
+        // 6. Return the raw response object to the client
+        res.json(response);
+
+      } catch (error) {
+        console.error("❌ Proxy Error:", error);
+        // Return a structured error so the frontend can handle it (e.g. Rate Limit retries)
+        res.status(500).json({
+          error: error.message,
+          details: error
+        });
+      }
     }
-
-    // Default: Gemini (Text/Multimodal) using Vertex AI SDK
-    const vertex_ai = getVertexClient(modelLocation);
-    const generativeModel = vertex_ai.getGenerativeModel({ model: modelId });
-
-    const request = {
-      contents: req.body.contents || [{ role: 'user', parts: [{ text: prompt }] }]
-    };
-
-    if (req.body.systemInstruction) {
-      request.systemInstruction = req.body.systemInstruction;
-    }
-
-    if (req.body.tools) {
-      request.tools = req.body.tools;
-    }
-
-    const result = await generativeModel.generateContent(request);
-    res.json(result.response);
-
   } catch (error) {
-    logError(`[API Error] ${error.message} `);
-    const details = error.response ? JSON.stringify(error.response.data) : error.message;
-    res.status(500).json({ error: error.message, details: details });
+    logError(`[API Dispatcher] Error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -62,10 +62,15 @@ import {
 } from 'lucide-react';
 
 interface AgentBuilderProps {
+    /** Callback fired when the user completes the wizard and "Create"s the agent. */
   onAgentCreated: (agent: Agent) => void;
-  initialAgent?: Agent; // Support reloading an existing agent
+    /** (Optional) Existing agent data to populate the builder (Edit Mode). */
+    initialAgent?: Agent;
+    /** (Optional) Draft ID for saving progress. */
     draftId?: string;
+    /** If true, renders without the back button (for embedded usage). */
     isEmbedded?: boolean;
+    /** Callback when an agent is selected in the diagram. */
     onSelectAgent?: (agent: Agent) => void;
 }
 
@@ -1130,8 +1135,8 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tools</label>
                                 <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-80 overflow-y-auto custom-scrollbar">
                                     {/* Categorized Tools List */}
-                                    {Array.from(new Set(AVAILABLE_TOOLS_LIST.map(t => t.category))).map(category => {
-                                        const categoryTools = AVAILABLE_TOOLS_LIST.filter(t => t.category === category);
+                                      {Array.from(new Set(AVAILABLE_TOOLS_LIST.map(t => t.category || 'Uncategorized'))).map(category => {
+                                          const categoryTools = AVAILABLE_TOOLS_LIST.filter(t => (t.category || 'Uncategorized') === category);
                                         const isExpanded = expandedCategories.includes(category);
                                         const selectedCount = categoryTools.filter(t => selectedAgent.tools?.includes(t.id)).length;
 

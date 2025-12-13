@@ -33,14 +33,14 @@ const App: React.FC = () => {
   // Load persistence
   useEffect(() => {
     const init = async () => {
-      // 1. Load Custom Agents
+      // 1. Load Custom Agents (User created) from IndexedDB
       const stored = await loadAgentsFromStorage();
 
-      // 2. Merge with Sample Agents (if no stored agents, or just ensure samples exist in registry for demo)
-      // For this demo, let's combine them uniquely by ID
+      // 2. Merge with Sample Agents
+      // STRATEGY: We want to ensure the "Demo" experience always has content.
+      // We combine stored agents with hardcoded samples, deduplicating by ID.
       const allAgents = [...stored];
 
-      // Add samples if they aren't there
       SAMPLE_AGENTS.forEach(sample => {
         if (!allAgents.find(a => a.id === sample.id)) {
           allAgents.push(sample);

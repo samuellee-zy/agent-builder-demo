@@ -6,7 +6,7 @@ import { AgentBuilder } from './AgentBuilder';
 import { AVAILABLE_TOOLS_REGISTRY } from '../services/tools';
 import { VideoMessage } from './VideoMessage';
 import { EvaluationService } from '../services/evaluation';
-import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp, Pencil, RefreshCw, Search, Filter } from 'lucide-react';
+import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp, Pencil, RefreshCw, Search, Filter, Plus } from 'lucide-react';
 
 interface AgentRegistryProps {
   agents: Agent[];
@@ -56,7 +56,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   // Evaluation State
   const [evalConfig, setEvalConfig] = useState({
       scenarioCount: 3,
-      simulatorModel: 'gemini-3-pro-preview'
+      simulatorModel: 'gemini-2.5-flash'
   });
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalProgress, setEvalProgress] = useState('');
@@ -78,10 +78,12 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
         return matchesSearch && matchesTag;
     });
 
-    /**
-     * Helper to recursively count Models and Tools in an agent tree.
-     * Used for the statistics badges on the agent cards.
-     */
+  /**
+   * Helper to recursively count Models and Tools in an agent tree.
+   * Used for the statistics badges on the agent cards (e.g., "3 Models, 5 Tools").
+   * 
+   * @param agent The root agent to traverse.
+   */
   const countNodes = (agent: Agent): { models: number, tools: number } => {
     let models = agent.type === 'agent' ? 1 : 0;
     let tools = agent.tools?.length || 0;
@@ -95,6 +97,9 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
     return { models, tools };
   };
 
+    /**
+     * Recursive search to find a node (Agent or Group) by ID within the hierarchy.
+     */
   const findNodeById = (id: string, current: Agent): Agent | null => {
     if (current.id === id) return current;
     if (current.subAgents) {
@@ -127,17 +132,20 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
         }
     };
 
-    /**
-     * Triggers a new Evaluation Audit.
-     * Uses `EvaluationService` to run simulations and generate a report.
-     * 
-     * FLOW:
-     * 1. Starts UI loading state.
-     * 2. Calls `service.runFullEvaluation`.
-     * 3. Saves result to Agent object.
-     * 4. Persists updated Agent to storage.
-     */
-  const handleRunEvaluation = async () => {
+      /**
+       * Triggers a new Evaluation Audit.
+       * Uses `EvaluationService` to run simulations and generate a report.
+       * 
+       * FLOW:
+       * 1. Starts UI loading state & sets progress message.
+       * 2. Calls `service.runFullEvaluation` which orchestrates:
+       *    - User Simulation (Gemini)
+       *    - Agent Response
+       *    - Judge Evaluation (Gemini)
+       * 3. Saves partial & final results to the Agent object.
+       * 4. Persists updated Agent to ensure history is saved.
+       */
+    const handleRunEvaluation = async () => {
       if (!selectedAgent) return;
       setIsEvaluating(true);
       setEvalProgress('Initializing...');
@@ -651,32 +659,141 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                     )}
 
                     {activeTab === 'evaluation' && (
-                        <div className="h-full p-8 flex flex-col items-center justify-center text-slate-500">
-                            <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 border border-slate-800">
-                                <CheckCircle size={40} className="text-slate-600" />
+                        <div className="h-full flex flex-col md:flex-row bg-slate-950">
+                            {/* Evaluation History Sidebar */}
+                            <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900/50 flex flex-col shrink-0">
+                                <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                                    <h3 className="font-bold text-white text-sm">Evaluation History</h3>
+                                    <button
+                                        onClick={() => { setSelectedReport(null); }}
+                                        className="text-xs flex items-center gap-1 bg-brand-600 hover:bg-brand-500 text-white px-2 py-1 rounded transition-colors"
+                                    >
+                                        <Plus size={12} /> New
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                    {(!selectedAgent.evaluations || selectedAgent.evaluations.length === 0) && (
+                                        <div className="p-4 text-center text-slate-500 text-xs italic">
+                                            No evaluations run yet.
+                                        </div>
+                                    )}
+                                    {selectedAgent.evaluations?.map(report => (
+                                        <div
+                                            key={report.id}
+                                            onClick={() => setSelectedReport(report)}
+                                            className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedReport?.id === report.id
+                                                ? 'bg-slate-800 border-brand-500/50 ring-1 ring-brand-500/20'
+                                                : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-600'
+                                                }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`text-xl font-bold ${report.summary.avgScore >= 8 ? 'text-green-400' : report.summary.avgScore >= 5 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                    {report.summary.avgScore}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500">{formatDate(report.timestamp, true)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-[10px] text-slate-400">
+                                                <span className="flex items-center gap-1"><Layers size={10} /> {report.sessions.length} Tests</span>
+                                                <span className="flex items-center gap-1"><Zap size={10} /> {report.config.simulatorModel.replace('gemini-', '')}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Evaluation Module</h3>
-                            <p className="max-w-md text-center text-slate-400 mb-8">Run comprehensive benchmarks and automated tests against your agent to measure performance, accuracy, and latency.</p>
-                            <button
-                                onClick={handleRunEvaluation}
-                                disabled={isEvaluating}
-                                className="px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg shadow-brand-500/20 transition-all flex items-center gap-2"
-                            >
-                                {isEvaluating ? (
-                                    <>
-                                        <RefreshCw className="animate-spin" />
-                                        Running Tests...
-                                    </>
+
+                            {/* Main Content */}
+                            <div className="flex-1 flex flex-col overflow-hidden relative">
+                                {selectedReport ? (
+                                    renderEvaluationReport()
                                 ) : (
-                                    <>
-                                        <Play size={20} />
-                                        Start New Evaluation
-                                    </>
+                                    <div className="h-full flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+
+                                        <div className="w-full max-w-md space-y-8">
+                                            <div className="text-center">
+                                                <div className="w-16 h-16 bg-gradient-to-br from-brand-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-500/20">
+                                                    <CheckCircle size={32} className="text-white" />
+                                                </div>
+                                                <h2 className="text-2xl font-bold text-white mb-2">New Evaluation Session</h2>
+                                                <p className="text-slate-400 text-sm">Configure your automated test suite.</p>
+                                            </div>
+
+                                            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
+                                                {/* Scenario Count Slider */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <label className="text-xs font-bold text-slate-300 uppercase">Test Scenarios</label>
+                                                        <span className="text-xs font-mono text-brand-400 bg-brand-900/20 px-2 py-0.5 rounded border border-brand-500/20">
+                                                            {evalConfig.scenarioCount} Tests
+                                                        </span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="20"
+                                                        value={evalConfig.scenarioCount}
+                                                        onChange={(e) => setEvalConfig({ ...evalConfig, scenarioCount: parseInt(e.target.value) })}
+                                                        className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-500"
+                                                    />
+                                                    <div className="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
+                                                        <span>1 (Quick)</span>
+                                                        <span>20 (Thorough)</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Model Selector */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-300 uppercase mb-2">Judge / Simulator Model</label>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={evalConfig.simulatorModel}
+                                                            onChange={(e) => setEvalConfig({ ...evalConfig, simulatorModel: e.target.value })}
+                                                            className="w-full appearance-none bg-slate-800 border border-slate-700 text-white pl-4 pr-10 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all text-sm"
+                                                        >
+                                                            {AVAILABLE_MODELS.map(model => (
+                                                                <option key={model.id} value={model.id}>{model.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                                                    </div>
+                                                </div>
+
+                                                    {/* Action Button */}
+                                                    <button
+                                                        onClick={handleRunEvaluation}
+                                                        disabled={isEvaluating}
+                                                        className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${isEvaluating
+                                                            ? 'bg-slate-700 cursor-not-allowed text-slate-400'
+                                                            : 'bg-brand-600 hover:bg-brand-500 hover:scale-[1.02] shadow-brand-500/20'
+                                                            }`}
+                                                    >
+                                                        {isEvaluating ? (
+                                                            <>
+                                                                <RefreshCw className="animate-spin" />
+                                                                <span>Running Evaluation...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Play size={20} fill="currentColor" />
+                                                                <span>Start Evaluation</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+
+                                                    {/* Progress Bar */}
+                                                    {isEvaluating && (
+                                                        <div className="space-y-2 animate-in fade-in">
+                                                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-brand-500 animate-pulse rounded-full w-full origin-left duration-1000"></div>
+                                                                {/* Note: Actual progress % isn't plumbing through easily without extra state, so using indeterminate/pulse for "Activity" or we could parse the log message */}
+                                                            </div>
+                                                            <p className="text-center text-xs font-mono text-brand-400">{evalProgress}</p>
+                                                        </div>
+                                                    )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
-                            </button>
-                            {evalProgress && (
-                                <p className="mt-4 text-xs font-mono text-brand-400 animate-pulse">{evalProgress}</p>
-                            )}
+                            </div>
                         </div>
                     )}
                 </div>
