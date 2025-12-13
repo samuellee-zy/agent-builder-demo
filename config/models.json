@@ -1,5 +1,15 @@
 [
   {
+    "id": "gemini-live-2.5-flash-native-audio",
+    "name": "Gemini 2.5 Flash Live",
+    "description": "Native Audio model for real-time voice & video.",
+    "backend": {
+      "location": "us-central1",
+      "modelId": "gemini-live-2.5-flash-native-audio",
+      "protocol": "websocket"
+    }
+  },
+  {
     "id": "gemini-2.5-flash",
     "name": "Gemini 2.5 Flash",
     "description": "Fast, cost-efficient, low latency.",
@@ -78,16 +88,6 @@
       "modelId": "imagen-4.0-fast-generate-001",
       "protocol": "http"
     }
-  },
-  {
-    "id": "gemini-live-2.5-flash-native-audio",
-    "name": "Gemini Live (Voice)",
-    "description": "Real-time voice interaction with native audio.",
-    "backend": {
-      "location": "us-central1",
-      "modelId": "gemini-2.5-flash-native-audio",
-      "protocol": "websocket"
-    },
-    "hidden": true
   }
+
 ]

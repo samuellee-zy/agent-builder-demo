@@ -4,6 +4,17 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 14/12/2025
+
+#### Live API Enhancements (Voice & Grounding)
+- **Real-time Grounding**:
+  - **Google Search Integration**: Implemented automatic tool injection for the Live API. If an agent has the "Google Search" tool, the Live Client now configures the session with `{ google_search: {} }`, enabling the Voice Agent to cite real-time sources (e.g., stock prices, news).
+- **Audio Stability**:
+  - **16kHz Constraint**: Hardened `LiveClient` to strictly enforce `sampleRate: 16000` for both `AudioContext` and `getUserMedia`. This resolves the `NotFoundError` on some hardware and ensures compatibility with Vertex AI's specific audio requirements.
+  - **Dictation Sync**: Integrated `useDictation` (Web Speech API) with a smart delay (1.5s) to coexist with the Live API audio stream. Users now see their own words appear as chat bubbles while talking to the Voice Agent.
+- **Video Logic**:
+  - **Conflict Resolution**: Temporarily disabled "Video Persistence" (`streamRef`) logic to prioritize Audio stability. Video preview is functional but simplified to prevent resource fighting that was causing audio dropouts.
+
 ### 13/12/2025
 
 #### Mobile UI Polish & Navigation Updates
@@ -45,6 +56,11 @@ All notable changes to the Agent Builder project will be documented in this file
     - Changed 4-column layout trigger from `xl` (1280px) to `2xl` (1536px).
     - Screens between 1024px and 1535px now display **3 columns**, preventing card compression.
 
+- **Refactor**: Moved Model Configuration to shared `config/models.json` (Single Source of Truth).
+- **Feat**: Prepared `models.json` schema for Gemini Live (WebSocket protocol support).
+- **Fix**: Removed legacy 1.5 models.
+- **Fix**: Resolved `AgentRegistry` slide-over to Master-Detail layout.
+- **Fix**: Added `PanZoomContainer` for Agent Architecture diagram. appears **instantly centered** on load, eliminating the "flying from top-left" transition effect.
 - **Visual Builder Animation**:
   - **Centering Fix**: Modified `PanZoomContainer` to ensure the diagram appears **instantly centered** on load, eliminating the "flying from top-left" transition effect.
 - **Tools Library Polish**:
@@ -350,6 +366,21 @@ All notable changes to the Agent Builder project will be documented in this file
   - Increased global root font size to **21px** (approximately 30% larger than the 16px default).
   - Added CSS overrides for `text-[10px]` and `text-[9px]` to convert them to scalable `rem` units, ensuring metadata and badges resize proportionally with the rest of the interface.
 
+## [Unreleased]
+
+### Added
+- **Gemini Live API Integration**:
+  - Validated architecture for `gemini-live-2.5-flash-native-audio` (Real-time Voice/Video).
+  - Implemented **WebSocket Proxy** (`server/liveServer.js`) for secure bidirectional streaming.
+  - Implemented **Client Audio Engine** (`LiveClient.ts`) for PCM 16kHz Input / 24kHz Output.
+  - Added **Video Streaming** (1 FPS, 768x768 JPEG) for multimodal vision.
+
+### Fixed
+- **Live API "Silent Failure"**: Fixed incorrect Vertex AI WebSocket URL. Switched from `GenerateContent` (HTTP) to `BidiGenerateContent` (WebSocket).
+- **"White Noise" Audio Bug**: Fixed server logic to correctly identify JSON text frames vs. Binary audio frames. Previously, JSON was being forwarded as binary, causing static.
+- **Handshake Race Condition**: Implemented `setup_complete` signal to ensure Client waits for Vertex connection before streaming audio.
+- **Audio Alignment Crash**: Added safety check in `LiveClient` to handle odd-byte buffers from network.
+- **REST API Compatibility**: Implemented automatic fallback to `gemini-2.5-flash` when using Text Chat with the Native Audio model (which doesn't support REST).
 #### Added Gemini 2.5 Flash Lite
 - **Updated `types.ts` & `mockAgentService.ts`**:
   - Added `gemini-flash-lite-latest` (Gemini 2.5 Flash Lite) to the supported models list.

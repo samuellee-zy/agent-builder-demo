@@ -29,6 +29,10 @@
 *   **Undo / Revert Changes:** History stack to recover from accidental changes.
 
 ### ⚡ Advanced Orchestration
+*   **Real-time Voice Mode (Gemini Live):**  Talk to your agents naturally with <300ms latency using the Multimodal Live API (`native-audio`).
+    *   **Grounding:** Voice Agents can perform real-time Google Searches to cite current events (enabled via "Google Search" tool).
+    *   **User Dictation:** See your own words appear as chat bubbles while you speak (Web Speech integration).
+    *   **16kHz High-Fidelity:** Optimized audio engine ensures crystal clear communication with Vertex AI.
 *   **Client-Side Engine:** Runs entirely in browser.
 *   **Coordinator Pattern:** Handles task delegation automatically.
 *   **Sequential Sessions:** Auto-incrementing Session IDs (#1, #2) for clear tracking.
@@ -81,7 +85,9 @@
 - **`scripts/`**: Utility scripts.
 
 ## 📖 Documentation
+## 📖 Documentation
 For a deep dive into the code structure, file responsibilities, undo architecture, and orchestration patterns, please refer to **[docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md)**.
+For the **Real-time Voice Implementation**, see **[docs/features/live_api_implementation.md](./docs/features/live_api_implementation.md)**.
 See **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** for version history and **[docs/TOOLS.md](./docs/TOOLS.md)** for tool documentation.
 
 ---
@@ -220,6 +226,8 @@ The `TFNSW_API_KEY` environment variable is missing on the server. The backend r
 ## ❓ FAQ
 
 ### Why not use Vertex AI?
-This application is designed as a **Client-Side Only** demo to be easily deployable without a backend. Vertex AI requires a secure backend (e.g., Node.js/Python) to handle Service Account credentials (IAM), as these cannot be safely used directly in a browser.
+This application IS powered by Vertex AI! We have implemented a secure **Node.js Backend Proxy** (`server/index.js` & `server/liveServer.js`) to handle authentication (IAM/ADC) safely, keeping credentials off the client.
 
-If you require Enterprise-grade security or Vertex AI features, we recommend adding a lightweight backend proxy (e.g., Express.js) to handle API requests and keep credentials server-side.
+The frontend communicates with this backend via:
+1.  **HTTP POST** for Text/Image Chat (REST API).
+2.  **WebSockets** for Real-time Voice/Video (Live API).

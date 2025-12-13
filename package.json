@@ -11,6 +11,7 @@
   "dependencies": {
     "@google-cloud/vertexai": "^1.9.3",
     "@google/genai": "^1.32.0",
+    "@types/ws": "^8.18.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "google-auth-library": "^10.5.0",
@@ -20,7 +21,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",

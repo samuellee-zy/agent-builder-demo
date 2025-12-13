@@ -24,42 +24,18 @@ import { GoogleGenAI } from "@google/genai";
 import { AgentDiagram } from './AgentDiagram';
 import { VideoMessage } from './VideoMessage';
 import { PanZoomContainer } from './PanZoomContainer';
+import { useDictation } from '../hooks/useDictation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LocationFinder } from './LocationFinder';
 import { TransportModeSelector } from './TransportModeSelector';
 import { get, set } from 'idb-keyval';
 import { 
-  Sparkles, 
-  ArrowRight, 
-  Bot, 
-  Layers,
-  ArrowDownCircle,
-  Zap,
-  Network,
-  Wrench,
-  Check,
-  Paperclip,
-  Play,
-  Terminal,
-  CreditCard,
-  AlertTriangle,
-  Film,
-  RotateCcw,
-  RefreshCw,
-  AlertCircle,
-  PencilRuler,
-  MessageSquarePlus,
-  Download,
-  ChevronDown,
-    ChevronLeft,
-  ChevronRight,
-    Undo2,
-    MapPin,
-    Train,
-    Settings,
-    X,
-    Tag
+    PencilRuler, Play, ChevronLeft, ChevronRight, ChevronDown, Plus, Trash2, X,
+    MessageSquarePlus, Bot, Zap, ZapOff, Save, Undo2, ArrowRight, Settings,
+    Maximize2, Minimize2, Video, VideoOff, Mic, MicOff, Check, Wrench, Sparkles,
+    Terminal, Tag, RefreshCw, Paperclip, Loader2, Network, Train, MapPin,
+    CreditCard, AlertTriangle
 } from 'lucide-react';
 
 interface AgentBuilderProps {
@@ -117,20 +93,292 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     // Track previous agent ID to prevent unnecessary resets
     const prevAgentIdRef = useRef<string | null>(null);
 
-  // Load initial agent if provided
-  useEffect(() => {
-    if (initialAgent) {
-      setRootAgent(initialAgent);
+    // Live Mode Hook/State (MOVED UP to prevent ReferenceError)
+    const [isLiveMode, setIsLiveMode] = useState(false);
+    const [liveStatus, setLiveStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+    const [isCameraOn, setIsCameraOn] = useState(false);
+    const liveClientRef = useRef<any>(null); // Type safety loose for speed
 
-        // Only reset view state if we've actually switched agents
-        if (initialAgent.id !== prevAgentIdRef.current) {
-            setSelectedAgentId(initialAgent.id);
-            setStep('review');
-            setHistory([]); // Reset history on load
-            prevAgentIdRef.current = initialAgent.id;
+    // Multimodal Refs
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const videoIntervalRef = useRef<any>(null);
+    const streamRef = useRef<MediaStream | null>(null); // Persistence
+
+
+    // Dictation Hook (Architect)
+    const {
+        isListening: isArchitectDictating,
+        transcript: architectDictationTranscript,
+        start: startArchitectDictation,
+        stop: stopArchitectDictation,
+        isSupported: isDictationSupported
+    } = useDictation();
+
+    // Dictation Hook (Test/Simulator)
+    const {
+        isListening: isTestDictating,
+        transcript: testDictationTranscript, // Still available if needed used by non-live
+        interimTranscript: testDictationInterim,
+        start: startTestDictation,
+        stop: stopTestDictation
+    } = useDictation({
+        onFinalResult: (text) => {
+            // Only append if in Live Mode (to simulate Chat Bubbles)
+            // or if we want standard dictation to auto-submit? 
+            // For now, only Live Mode uses this "Bubble" behavior.
+            if (isLiveMode && text.trim()) {
+                setTestMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    role: 'user',
+                    content: text,
+                    timestamp: Date.now()
+                }]);
+            }
         }
-    }
-  }, [initialAgent]);
+    });
+
+    // Sync Architect Dictation
+    useEffect(() => {
+        if (isArchitectDictating && architectDictationTranscript) {
+            setArchitectInput(architectDictationTranscript);
+        }
+    }, [architectDictationTranscript, isArchitectDictating]);
+
+    // Sync Test Dictation (Legacy / Text Mode)
+    // Disabled for Live Mode to prevent "Typing in Bar"
+    useEffect(() => {
+        if (isTestDictating && testDictationTranscript && !isLiveMode) {
+            setTestInput(testDictationTranscript);
+        }
+    }, [testDictationTranscript, isTestDictating, isLiveMode]);
+
+    // Load initial agent if provided
+    useEffect(() => {
+        if (initialAgent) {
+            setRootAgent(initialAgent);
+
+            // Only reset view state if we've actually switched agents
+            if (initialAgent.id !== prevAgentIdRef.current) {
+                setSelectedAgentId(initialAgent.id);
+                setStep('review');
+                setHistory([]); // Reset history on load
+                prevAgentIdRef.current = initialAgent.id;
+            }
+        }
+    }, [initialAgent]);
+
+    // Safety Effect: Ensure Video Element has stream if Camera is On
+    // REVERTED: Persistence logic causes Audio conflicts/crashes.
+    /*
+    useEffect(() => {
+        if (isCameraOn && videoRef.current && !videoRef.current.srcObject && streamRef.current) {
+            console.log("[Camera] Restoring missing stream to video element...");
+            videoRef.current.srcObject = streamRef.current;
+            videoRef.current.play().catch(e => console.error("[Camera] Restore play failed:", e));
+        }
+    }, [isCameraOn]); 
+    */
+
+    // Toggle Camera
+    const toggleCamera = async () => {
+        if (!isCameraOn) {
+            // Turning ON
+            try {
+                console.log("[Camera] Requesting access...");
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                console.log("[Camera] Access granted:", stream.id);
+                // streamRef.current = stream; // Persistence DISABLED due to conflicts
+
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    // Explicitly play to ensure it starts even if previously hidden
+                    videoRef.current.play().catch(e => console.error("[Camera] Play error:", e));
+
+                    setIsCameraOn(true);
+
+                    // Start Sending Video Logic (if Live Mode is active)
+                    if (isLiveMode && liveClientRef.current) {
+                        // Wait for connection to be fully established (match audio delay)
+                        setTimeout(() => {
+                            if (videoRef.current) {
+                                liveClientRef.current.startVideo(videoRef.current);
+                            }
+                        }, 3500);
+                    }
+                } else {
+                    console.error("[Camera] Video Ref is null!");
+                }
+            } catch (err) {
+                console.error("Camera Error:", err);
+                setLastError("Failed to access camera.");
+            }
+        } else {
+            // Turning OFF
+            /*
+            if (streamRef.current) {
+               streamRef.current.getTracks().forEach(track => track.stop());
+               streamRef.current = null;
+            }
+            */
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+                videoRef.current.srcObject = null;
+            }
+            if (liveClientRef.current) {
+                liveClientRef.current.stopVideo();
+            }
+            setIsCameraOn(false);
+        }
+    };
+
+    const captureAndSendFrame = () => {
+        // Disabled
+        /*
+        if (!liveClientRef.current || !videoRef.current || !canvasRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Draw video frame to canvas
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convert to Base64 (JPEG)
+        const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+        // Send to Live API
+        liveClientRef.current.sendRealtimeInput([{
+            mime_type: 'image/jpeg',
+            data: base64
+        }]);
+        */
+    };
+
+    // Toggle Live Mode
+    const toggleLiveMode = async () => {
+        if (liveStatus === 'connecting') return; // Prevent double-clicks
+
+        if (isLiveMode) {
+            // Stop
+            await liveClientRef.current?.disconnect();
+            setLiveStatus('disconnected');
+
+            // Auto stop camera
+            if (isCameraOn) toggleCamera();
+
+            setIsLiveMode(false);
+        } else {
+            // Start
+            console.log("Starting Live Mode...");
+            setLiveStatus('connecting');
+
+            // Import dynamically to avoid SSR issues if any
+            const { LiveClient } = await import('../services/liveClient');
+
+            console.log("LiveClient Class Loaded.");
+
+            // Prepare Tools Config
+            // 1. Standard Function Declarations
+            // 2. Special Native Tools (Google Search Grounding)
+            const liveTools: any[] = [];
+            const standardTools: any[] = [];
+
+            // TOOL INJECTION LOGIC
+            // We analyze the active Agent's toolset to configure the Live Session.
+            if (rootAgent?.tools) {
+                // GROUNDING DETECTION
+                // We specifically look for the 'google_search' tool ID.
+                // If present, we inject the specific Google Search Grounding config required by the Live API.
+                // NOTE: This is different from the Function Declaration format used for text chat.
+                const hasGoogleSearch = rootAgent.tools.some((t: any) => t.id === 'google_search' || t === 'google_search');
+
+                if (hasGoogleSearch) {
+                    console.log("[LiveMode] Enabling Google Search Grounding");
+                    // SPECIFIC PAYLOAD FOR LIVE API GROUNDING
+                    liveTools.push({ google_search: {} });
+                }
+
+                // Future: Standard Function Declarations would be pushed here.
+                // Currently deferred to keep architecture simple for Grounding-First approach.
+            }
+
+            // Config from Root Agent
+            const config = {
+                voice: rootAgent?.voice || 'Puck', // Default to Puck
+                systemInstruction: rootAgent?.instructions || 'You are a helpful AI assistant.',
+                tools: liveTools
+            };
+
+            const client = new LiveClient();
+            client.onConnect = () => {
+                console.log("LiveClient onConnect fired!");
+                setLiveStatus('connected');
+            };
+            client.onError = (err) => {
+                console.error("Live Error:", err);
+                setLastError(`Live API Error: ${err}`);
+                setLiveStatus('error');
+                setIsLiveMode(false);
+            };
+
+            // Handle Incoming Text (Transcription from Gemini)
+            client.onTextData = (text, role) => {
+                setTestMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    role: role === 'user' ? 'user' : 'assistant',
+                    content: text,
+                    sender: role === 'model' ? rootAgent?.name : 'User',
+                    timestamp: Date.now()
+                }]);
+            };
+
+            try {
+                await client.connect(config);
+                liveClientRef.current = client;
+                setIsLiveMode(true);
+            } catch (e) {
+                console.error("Failed to start Live Mode:", e);
+                setLiveStatus('error');
+                setIsLiveMode(false);
+            }
+        }
+    };
+
+    // Cleanup Live Client
+    useEffect(() => {
+        return () => {
+            liveClientRef.current?.disconnect();
+            if (videoIntervalRef.current) clearInterval(videoIntervalRef.current);
+            // Stop video stream if active
+            if (videoRef.current && videoRef.current.srcObject) {
+                const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+                tracks.forEach(t => t.stop());
+            }
+        };
+    }, []);
+
+    // Auto-Start Dictation in Live Mode
+    // SYNC STRATEGY:
+    // We run two parallel audio systems: `LiveClient` (WebSockets) and `useDictation` (Web Speech API).
+    // To prevent "NotFoundError" or "Device Busy" errors on Windows/Android, we introduce a delay.
+    // This allows `LiveClient` to securely acquire the microphone stream FIRST, before `SpeechRecognition` tries to attach.
+    useEffect(() => {
+        let timeoutId: any;
+        if (isLiveMode && isDictationSupported) {
+            // 1.5s Delay determined via trial and error to be robust across most devices.
+            timeoutId = setTimeout(() => {
+                startTestDictation();
+            }, 1500);
+        } else {
+            stopTestDictation();
+        }
+        return () => clearTimeout(timeoutId);
+    }, [isLiveMode, isDictationSupported, startTestDictation, stopTestDictation]);
 
     // --- Persistence Logic ---
   useEffect(() => {
@@ -795,9 +1043,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         </p>
         
         <div className="w-full max-w-2xl relative group">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-500 to-blue-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-500 to-blue-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500 pointer-events-none"></div>
           <div className="relative bg-slate-800 rounded-xl p-2 shadow-2xl border border-slate-700/50">
             <textarea
+                      className="w-full bg-transparent text-slate-200 placeholder-slate-500 p-4 min-h-[120px] focus:outline-none resize-none text-lg"
+                      placeholder="e.g. I need a research agent that tracks crypto prices and summarizes news..."
               value={architectInput}
               onChange={(e) => setArchitectInput(e.target.value)}
               onKeyDown={(e) => {
@@ -806,54 +1056,64 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                   handleArchitectSend();
                 }
               }}
-              placeholder="I need a research team to search for latest AI news and summarize it..."
-              className="w-full bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 resize-none h-32 text-lg p-4"
             />
-                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center px-4 pb-3 mt-2 relative gap-3 md:gap-0">
-                      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
-                          <button
-                              onClick={() => setShowToolSelector(!showToolSelector)}
-                              className="flex items-center justify-center md:justify-start gap-2 text-slate-400 hover:text-white transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-700/50 relative group/attach border border-slate-700/50 md:border-transparent"
-                          >
-                              <Paperclip size={16} className="group-hover/attach:text-brand-400 transition-colors" />
-                              <span className="font-medium">Attach Tools</span>
-                          </button>
-
-                          {/* Model Selector */}
-                          <div className="relative group/model">
-                              <select
-                                  value={architectModel}
-                                  onChange={(e) => setArchitectModel(e.target.value)}
-                                  className="w-full md:w-auto appearance-none bg-slate-900/50 border border-slate-700 text-slate-300 text-xs font-medium rounded-lg pl-4 pr-10 py-2 hover:border-slate-500 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer md:min-w-[200px]"
+                  <div className="flex justify-between items-center px-4 py-2 border-t border-slate-700/50">
+                      <div className="flex gap-2">
+                          {isDictationSupported && (
+                              <button
+                                  onClick={isArchitectDictating ? stopArchitectDictation : startArchitectDictation}
+                                  className={`
+                             p-2 rounded-full transition-all duration-300 flex items-center gap-2
+                             ${isArchitectDictating
+                                          ? 'bg-red-500/20 text-red-400 ring-2 ring-red-500/50 animate-pulse'
+                                          : 'hover:bg-slate-700 text-slate-400 hover:text-white'}
+                         `}
+                                  title={isArchitectDictating ? "Stop Listening" : "Voice Input"}
                               >
-                                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
-                                  <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-                              </select>
-                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover/model:text-slate-300 transition-colors" />
-                          </div>
+                                  {isArchitectDictating ? <MicOff size={20} /> : <Mic size={20} />}
+                                  {isArchitectDictating && <span className="text-xs font-bold">Listening...</span>}
+                              </button>
+                          )}
                       </div>
-               {showToolSelector && renderToolSelector()}
-
-               <button 
-                 onClick={handleArchitectSend}
-                 disabled={!architectInput.trim()}
-                          className="bg-brand-600 hover:bg-brand-500 text-white p-3 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex justify-center items-center"
-               >
-                 <ArrowRight size={20} />
-               </button>
-            </div>
+                      <button
+                          onClick={handleArchitectSend}
+                          disabled={!architectInput.trim()}
+                          className={`
+                  flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all duration-200
+                  ${architectInput.trim()
+                                  ? 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/20'
+                                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
+                `}
+                      >
+                          <span>Start Building</span>
+                          <ArrowRight size={18} />
+                      </button>
+                  </div>
+              </div>
           </div>
-        </div>
 
-        <div className="mt-8">
-            <button
-                onClick={handleSkipToVisualBuilder}
-                className="text-slate-500 hover:text-white text-sm flex items-center gap-2 transition-colors border-b border-transparent hover:border-slate-400 pb-0.5"
-            >
-                <PencilRuler size={16} />
-                <span>Skip to Visual Builder</span>
-            </button>
-        </div>
+          {/* Model Selector & Options */}
+          <div className="flex justify-between items-center px-2 pt-4 w-full max-w-2xl">
+              <div className="relative group/model">
+                  <select
+                      value={architectModel}
+                      onChange={(e) => setArchitectModel(e.target.value)}
+                      className="appearance-none bg-slate-800 border border-slate-700 text-slate-400 text-sm rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-slate-500 hover:border-slate-600 transition-colors cursor-pointer"
+                  >
+                      {AVAILABLE_MODELS.filter(m => !m.hidden && ['gemini-2.5-flash', 'gemini-3-pro-preview'].includes(m.id)).map(model => (
+                          <option key={model.id} value={model.id}>{model.name}</option>
+                      ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover/model:text-slate-300 transition-colors" />
+              </div>
+              <button
+                  onClick={handleSkipToVisualBuilder}
+                  className="text-slate-500 hover:text-white text-sm flex items-center gap-2 transition-colors"
+              >
+                  <PencilRuler size={14} />
+                  <span>Skip to Visual Builder</span>
+              </button>
+          </div>
     </div>
   );
 
@@ -1080,6 +1340,21 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                                     </select>
                                 </div>
                             )}
+
+                              {selectedAgent.type === 'agent' && selectedAgent.model === 'gemini-live-2.5-flash-native-audio' && (
+                                  <div className="mt-3">
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Voice</label>
+                                      <select
+                                          value={selectedAgent.voice || 'Puck'}
+                                          onChange={(e) => handleUpdateSelectedAgent({ voice: e.target.value })}
+                                          className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                      >
+                                          {['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'].map(v => (
+                                              <option key={v} value={v}>{v}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                              )}
                          </div>
 
                          <div>
@@ -1363,6 +1638,44 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                     </div>
                 </div>
             )}
+              {/* Live Video Preview Overlay & Capture Source */}
+              {/* VIDEO FIX: Use opacity instead of hidden to ensure stream loads/plays in background */}
+              <div className={isLiveMode && isCameraOn
+                  ? "absolute top-20 right-6 w-48 h-36 bg-black rounded-xl border-2 border-slate-700 overflow-hidden shadow-2xl z-50 transition-all hover:scale-105 hover:border-brand-500 opacity-100"
+                  : "absolute top-20 right-6 w-1 h-1 opacity-0 pointer-events-none z-[-1]"
+              }>
+                  <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover transform scale-x-[-1]"
+                      autoPlay
+                      playsInline
+                      muted
+                      onLoadedMetadata={() => {
+                          console.log("[Camera] Metadata loaded (readyState=" + videoRef.current?.readyState + "), attempting play...");
+                          videoRef.current?.play()
+                              .then(() => console.log("[Camera] Play success"))
+                              .catch(e => console.error("[Camera] Auto-play failed:", e));
+                      }}
+                  />
+                  {isLiveMode && isCameraOn && (
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                          <span className="text-[10px] text-white font-medium">LIVE</span>
+                      </div>
+                  )}
+              </div>
+
+              {/* Live Transcript Overlay (Interim Voice Only) */}
+              {isLiveMode && testDictationInterim && (
+                  <div className="absolute bottom-24 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 z-40 pointer-events-none">
+                      <div className="bg-black/60 backdrop-blur-md text-white text-lg font-medium p-4 rounded-2xl text-center shadow-xl border border-white/10 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                          "{testDictationInterim}..."
+                      </div>
+                  </div>
+              )}
+
+              {/* Only Canvas needs to be hidden explicitly if not used for preview */}
+              <canvas ref={canvasRef} className="hidden" />
             <div ref={messagesEndRef} />
         </div>
         <div className="p-4 bg-slate-900 border-t border-slate-800">
@@ -1410,24 +1723,78 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleTestSendMessage()}
-                    placeholder={`Message ${rootAgent?.name}...`}
-                    disabled={isTyping}
+                      placeholder={isLiveMode ? "Listening..." : `Message ${rootAgent?.name}...`}
+                      disabled={isTyping || (isLiveMode && !isCameraOn && !testInput.trim())}
                       className={`w-full bg-slate-800 border border-slate-700 text-white rounded-full py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-500/50 shadow-lg disabled:opacity-50 transition-all ${rootAgent && (function check(a: Agent): boolean { return a.tools?.includes('nsw_trip_planner') || (a.subAgents?.some(check) ?? false); })(rootAgent)
-                          ? 'pl-24 pr-14'
-                          : 'pl-6 pr-14'
-                          }`}
-                />
-                <button 
-                    onClick={() => handleTestSendMessage()}
-                    disabled={!testInput.trim() || isTyping}
-                      className="absolute right-2 top-2 p-2 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
-                >
-                    <ArrowRight size={20} />
-                </button>
-            </div>
+                          ? 'pl-24 pr-32'
+                          : 'pl-6 pr-32'
+                          } ${isLiveMode ? 'ring-2 ring-blue-500/50 bg-blue-900/10' : ''}`}
+                  />
+
+                  {/* Live Status Indicator - Moved Above Input */}
+                  {isLiveMode && (
+                      <div className={`absolute right-4 -top-8 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm backdrop-blur-md ${liveStatus === 'connected' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                          liveStatus === 'connecting' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-red-500/10 text-red-400 border border-red-500/20'
+                          }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${liveStatus === 'connected' ? 'bg-green-500 animate-pulse' :
+                              liveStatus === 'connecting' ? 'bg-amber-500 animate-bounce' :
+                                  'bg-red-500'
+                              }`} />
+                          {liveStatus === 'connected' ? 'Live Session Active' : liveStatus}
+                      </div>
+                  )}
+
+                  <div className="absolute right-2 top-2 flex items-center gap-1">
+                      {/* Video Toggle (Live Mode Only) */}
+                      {isLiveMode && (
+                          <button
+                              onClick={toggleCamera}
+                              className={`p-2 rounded-full transition-colors ${isCameraOn ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                              title={isCameraOn ? "Stop Camera" : "Start Camera"}
+                          >
+                              {isCameraOn ? <VideoOff size={18} /> : <Video size={18} />}
+                          </button>
+                      )}
+
+
+
+                      {/* Test Dictation */}
+                      {isDictationSupported && !isLiveMode && (
+                          <button
+                              onClick={isTestDictating ? stopTestDictation : startTestDictation}
+                              className={`p-2 rounded-full transition-colors ${isTestDictating ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                              title="Voice Input"
+                          >
+                              {isTestDictating ? <MicOff size={18} /> : <Mic size={18} />}
+                          </button>
+                      )}
+
+                      {/* Live Mode */}
+                      <button
+                          onClick={toggleLiveMode}
+                          className={`p-2 rounded-full transition-colors ${isLiveMode ? 'bg-blue-500/20 text-blue-400 animate-pulse' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                          title={isLiveMode ? "Stop Live Session" : "Start Live Session"}
+                      >
+                          {isLiveMode ? <ZapOff size={18} /> : <Zap size={18} />}
+                      </button>
+
+                      <button
+                          onClick={() => handleTestSendMessage()}
+                          disabled={!testInput.trim() || isTyping || (isLiveMode && !isCameraOn && !testInput.trim())} // Disable send if live mode is on, camera is off, and input is empty
+                          className="p-2 bg-brand-600 text-white rounded-full hover:bg-brand-500 transition-colors disabled:opacity-50 disabled:bg-slate-700"
+                      >
+                          <ArrowRight size={20} />
+                      </button>
+                  </div>
         </div>
+              {/* Hidden Video Elements for Multimodal Input */}
+              <video ref={videoRef} className="hidden" autoPlay playsInline muted />
+              <canvas ref={canvasRef} className="hidden" />
+          </div>
     </div>
   );
+
 
   return (
     <div className="flex-1 h-full overflow-hidden flex flex-col relative">
@@ -1456,3 +1823,4 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     </div>
   );
 };
+

@@ -385,8 +385,15 @@ app.post('/api/generate', async (req, res) => {
 
   try {
     const config = resolveModel(model);
-    const modelId = config.modelId;
+    let modelId = config.modelId;
     const modelLocation = config.location;
+
+    // FALLBACK: 'gemini-live-2.5-flash-native-audio' does NOT support REST API.
+    // If we receive a REST request for this model, fallback to a comparable text model.
+    if (modelId === 'gemini-live-2.5-flash-native-audio') {
+      console.log('[Proxy] Fallback: Switching gemini-live-2.5-flash-native-audio -> gemini-2.5-flash for REST Call');
+      modelId = 'gemini-2.5-flash';
+    }
 
     // Dispatcher
     if (model.startsWith('imagen')) {
@@ -573,7 +580,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} `);
-  console.log(`Project ID: ${PROJECT_ID} `);
+import { setupLiveServer } from './liveServer.js';
+
+// Create HTTP server first to attach WebSocket
+const server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Project ID: ${PROJECT_ID}`);
 });
+
+// Attach WebSocket Server
+setupLiveServer(server);

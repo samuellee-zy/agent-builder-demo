@@ -253,6 +253,10 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
   - `us-central1` for Veo and Imagen.
 - **Payload**: Mapped from internal `GenerativeContentOptions` to strict Vertex AI REST JSON (snake_case).
 - **Routing**: `server/index.js` handles routing based on the requested model.
+- **Live API (Real-time)**:
+  - **WebSocket Proxy**: `server/liveServer.js` proxies RFC 6455 WebSockets to `wss://generativelanguage.googleapis.com`.
+  - **Audio Standards**: Requires strict **PCM 16kHz Little-Endian** audio. The client (`LiveClient.ts`) uses `AudioContext` to resample microphone input (often 44.1kHz or 48kHz) to 16kHz before transmission.
+  - **Tool Injection**: Unlike standard REST, the Live API Setup Message requires a specific `{ tools: [{ google_search: {} }] }` payload for Grounding. This is handled dynamically in `AgentBuilder.tsx`.
 
 ---
 

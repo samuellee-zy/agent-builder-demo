@@ -27,6 +27,8 @@ export interface Agent {
   tools: string[];
   /** Model ID (e.g., 'gemini-2.5-flash'). */
   model: string;
+  /** Voice selection for Live API (e.g., 'Puck', 'Charon'). */
+  voice?: string;
   /** Tags for categorization/filtering. */
   tags?: string[];
   /** Creation timestamp. */

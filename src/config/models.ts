@@ -16,8 +16,10 @@ export interface ModelOption {
 }
 
 // Export only visible models for the UI Dropdown
-export const AVAILABLE_MODELS: ModelOption[] = (modelsConfig as any[]).filter(m => !m.hidden).map(m => ({
-  id: m.id,
-  name: m.name,
-  description: m.description
-}));
+export const AVAILABLE_MODELS: ModelOption[] = (modelsConfig as any[])
+  .filter(m => !m.hidden)
+  .map(m => ({
+    id: m.id,
+    name: m.name,
+    description: m.description
+  }));
