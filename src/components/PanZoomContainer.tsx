@@ -1,4 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Plus, Minus, Scan } from 'lucide-react';
+
+export interface PanZoomContainerRef {
+    centerView: () => void;
+}
 
 interface PanZoomContainerProps {
     children: React.ReactNode;
@@ -15,19 +20,31 @@ interface PanZoomContainerProps {
  * - Zooming via Ctrl+Scroll or Buttons.
  * - Centering content on mount.
  */
-export const PanZoomContainer: React.FC<PanZoomContainerProps> = ({
+export const PanZoomContainer = forwardRef<PanZoomContainerRef, PanZoomContainerProps>(({
     children,
     initialScale = 1,
     minScale = 0.5,
     maxScale = 3,
     className = ''
-}) => {
+}, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(initialScale);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
     const [isReady, setIsReady] = useState(false);
+
+    const centerView = () => {
+        if (containerRef.current) {
+            const { clientWidth, clientHeight } = containerRef.current;
+            setPosition({ x: clientWidth / 2, y: clientHeight / 2 });
+            setScale(initialScale);
+        }
+    };
+
+    useImperativeHandle(ref, () => ({
+        centerView
+    }));
 
     const handleWheel = (e: React.WheelEvent) => {
         // Prevent default scrolling only if we are zooming (optional, but good for maps)
@@ -122,13 +139,19 @@ export const PanZoomContainer: React.FC<PanZoomContainerProps> = ({
 
     // Center initial content and set ready state
     useEffect(() => {
-        if (containerRef.current) {
-            const { clientWidth, clientHeight } = containerRef.current;
-            // Center the content's origin (0,0) to the container's center
-            setPosition({ x: clientWidth / 2, y: clientHeight / 2 });
-            // Enable transitions after initial placement
-            requestAnimationFrame(() => setIsReady(true));
-        }
+        // Initial center
+        centerView();
+
+        // Ensure ready state for transition
+        requestAnimationFrame(() => setIsReady(true));
+
+        // Handle resize to keep centered (optional, but good)
+        const handleResize = () => {
+            // Re-centering on resize might be annoying if user panned away, so we skip it for now.
+            // But we could update bounds here if we had them.
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     return (
@@ -151,24 +174,29 @@ export const PanZoomContainer: React.FC<PanZoomContainerProps> = ({
                     transition: isDragging || !isReady ? 'none' : 'transform 0.1s ease-out',
                     opacity: isReady ? 1 : 0
                 }}
-                className="absolute top-0 left-0 w-full h-full pointer-events-none" // pointer-events-none to let clicks pass through wrapper? No, we need clicks on children.
+                className="absolute top-0 left-0 w-full h-full pointer-events-none" 
             >
-                {/* 
-                We need pointer-events-auto on children so they can be clicked (like nodes). 
-                But the wrapper itself handles the drag.
-            */}
                 <div className="pointer-events-auto origin-center flex items-center justify-center min-w-fit min-h-fit p-20">
                     {children}
                 </div>
             </div>
 
             {/* Zoom Controls Overlay */}
-            <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-slate-900/80 backdrop-blur rounded-lg p-2 border border-slate-700 shadow-xl z-50">
+            {/* Added mb-safe for iOS home indicator if needed, though bottom-28 is usually enough */}
+            <div className="absolute bottom-28 right-4 lg:bottom-4 lg:right-4 flex flex-col gap-2 bg-slate-900/80 backdrop-blur rounded-lg p-2 border border-slate-700 shadow-xl z-50">
+                <button
+                    onClick={() => centerView()}
+                    className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded"
+                    title="Center View"
+                >
+                    <Scan size={18} />
+                </button>
+                <div className="h-px bg-slate-700 my-0.5"></div>
                 <button
                     onClick={() => setScale(s => Math.min(s + 0.2, maxScale))}
                     className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded"
                 >
-                    +
+                    <Plus size={18} />
                 </button>
                 <button
                     onClick={() => setScale(1)}
@@ -180,9 +208,10 @@ export const PanZoomContainer: React.FC<PanZoomContainerProps> = ({
                     onClick={() => setScale(s => Math.max(s - 0.2, minScale))}
                     className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded"
                 >
-                    -
+                    <Minus size={18} />
                 </button>
             </div>
         </div>
     );
-};
+});
+PanZoomContainer.displayName = 'PanZoomContainer';

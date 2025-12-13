@@ -499,51 +499,60 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
      * - Checks for Paid Model usage (Veo/Imagen) to warn users if needed.
      */
   const handleStartTest = async () => {
-    if (!rootAgent) return;
-    
-    // Check for paid models
+      try {
+          console.log("Starting deployment sequence...");
+          if (!rootAgent) {
+              console.error("No root agent found");
+              return;
+          }
+
+      // Check for paid models
       // Billing check removed for Vertex AI migration (handled by backend/ADC)
       // const requiresBilling = AgentOrchestrator.isPaidModelInUse(rootAgent);
       // if (requiresBilling) { ... }
 
-    const initMsg: ChatMessage = {
-        id: 'init',
-        role: 'assistant',
-        sender: 'System',
-        content: `System Online. Coordinator '${rootAgent.name}' initialized. I am ready to orchestrate your request.`,
-        timestamp: Date.now()
-    };
+        const initMsg: ChatMessage = {
+            id: 'init',
+            role: 'assistant',
+            sender: 'System',
+            content: `System Online. Coordinator '${rootAgent.name}' initialized. I am ready to orchestrate your request.`,
+            timestamp: Date.now()
+        };
 
-    setTestMessages([initMsg]);
-    
-    // Create new Session with Sequential ID (1, 2, 3...)
-    const sessions = rootAgent.sessions || [];
-    
-    // Filter out old timestamp-based IDs (typically > 1 trillion) to find the max sequential ID
-    // Heuristic: IDs smaller than 1 billion are treated as sequential counters.
-    const sequentialIds = sessions
-        .map(s => parseInt(s.id, 10))
-        .filter(id => !isNaN(id) && id < 1000000000); 
-    
-    const nextId = sequentialIds.length > 0 ? Math.max(...sequentialIds) + 1 : 1;
-    const newSessionId = nextId.toString();
+        setTestMessages([initMsg]);
 
-    const newSession: AgentSession = {
-        id: newSessionId,
-        timestamp: new Date(),
-        messages: [initMsg]
-    };
-    
-    const updatedAgent = { 
-        ...rootAgent, 
-        sessions: [newSession, ...(rootAgent.sessions || [])] 
-    };
-    setRootAgent(updatedAgent);
-    onAgentCreated(updatedAgent); // Initial Save
-    setCurrentSessionId(newSessionId);
+        // Create new Session with Sequential ID (1, 2, 3...)
+        const sessions = rootAgent.sessions || [];
 
-    setStep('testing');
-    setLastError(null);
+        // Filter out old timestamp-based IDs (typically > 1 trillion) to find the max sequential ID
+        // Heuristic: IDs smaller than 1 billion are treated as sequential counters.
+        const sequentialIds = sessions
+            .map(s => parseInt(s.id, 10))
+            .filter(id => !isNaN(id) && id < 1000000000);
+
+        const nextId = sequentialIds.length > 0 ? Math.max(...sequentialIds) + 1 : 1;
+        const newSessionId = nextId.toString();
+
+        const newSession: AgentSession = {
+            id: newSessionId,
+            timestamp: new Date(),
+            messages: [initMsg]
+        };
+
+        const updatedAgent = {
+            ...rootAgent,
+            sessions: [newSession, ...(rootAgent.sessions || [])]
+        };
+        setRootAgent(updatedAgent);
+        onAgentCreated(updatedAgent); // Initial Save
+        setCurrentSessionId(newSessionId);
+
+        setStep('testing');
+        setLastError(null);
+    } catch (e: any) {
+        console.error("Deployment failed:", e);
+        setLastError(`Deployment failed: ${e.message}`);
+    }
   };
 
   const handleNewConversation = () => {
@@ -941,7 +950,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
         {/* Left: Diagram Canvas */}
         <div className="flex-1 flex flex-col relative bg-slate-950 overflow-hidden">
               {!isEmbedded && (
-                  <div className="absolute top-4 left-4 z-20 flex gap-2">
+                  <div className="absolute top-4 left-16 lg:left-4 z-20 flex gap-2 items-center">
                       <button
                           onClick={() => setStep('input')}
                           className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white flex items-center gap-2"

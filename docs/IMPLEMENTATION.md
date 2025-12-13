@@ -137,7 +137,9 @@ An **LLM-as-a-Judge** system to stress-test agents.
 - **Registry Features:**
   - **Rich History Replay:** Reconstructs chat interfaces with images and secure video playback.
   - **Evaluation Dashboard:** Visualizes test reports with aggregate scores and drill-down views into individual scenario transcripts.
-  - **Deletion:** Permanent removal of agents via `App.tsx` state management.
+  - **Deletion:**
+    - **Custom Confirmation Modal:** Prevent accidental deletions with a dedicated "Delete Agent" modal that requires explicit confirmation.
+    - **Persistence:** Deletion triggers `handleDeleteAgent` in `App.tsx`, which updates the global state and writes the new list to IndexedDB (via `storage.ts`), ensuring the agent is permanently removed.
   - **Video Playback:** Uses `VideoMessage` component to fetch secure blobs for Veo content.
   - **Mobile Responsiveness:**
     - **Master-Detail Stack:** On mobile, the layout switches from a side-by-side view to a stacked approach. The "Sidebar" (Agent Info & Tabs) serves as the main view, with content (Architecture/History) accessible via tabs.

@@ -47,6 +47,7 @@ const formatDate = (date: Date | string, includeTime = false) => {
 export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent, onEditAgent, onSelectAgent }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeTab, setActiveTab] = useState<'architecture' | 'history' | 'evaluation'>('architecture');
+    const [agentToDelete, setAgentToDelete] = useState<string | null>(null);
   
   // Detail State
   const [selectedSession, setSelectedSession] = useState<AgentSession | null>(null);
@@ -109,9 +110,14 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
 
   const handleDeleteClick = (e: React.MouseEvent, agentId: string) => {
       e.stopPropagation();
-      if (window.confirm('Are you sure you want to delete this agent? This action cannot be undone.')) {
-          onDeleteAgent(agentId);
-      }
+        setAgentToDelete(agentId);
+    };
+
+    const confirmDelete = () => {
+        if (agentToDelete && onDeleteAgent) {
+            onDeleteAgent(agentToDelete);
+            setAgentToDelete(null);
+        }
   };
 
     const handleSelectAgent = (agent: Agent) => {
@@ -679,8 +685,48 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
     };
 
 
+
+
   return (
       <div className={`flex flex-col h-full bg-slate-900 p-4 md:p-8 overflow-y-auto ${showMobileDetail ? 'hidden md:flex' : 'flex'}`}>
+
+          {/* Delete Confirmation Modal */}
+          {agentToDelete && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                      <div className="flex items-center gap-4 mb-4 text-red-400">
+                          <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center">
+                              <AlertTriangle size={24} />
+                          </div>
+                          <div>
+                              <h3 className="text-xl font-bold text-white">Delete Agent?</h3>
+                              <p className="text-sm text-slate-400">This action cannot be undone.</p>
+                          </div>
+                      </div>
+
+                      <p className="text-slate-300 text-sm leading-relaxed mb-6">
+                          Are you sure you want to permanently delete <strong className="text-white">{agents.find(a => a.id === agentToDelete)?.name || 'this agent'}</strong>?
+                          All associated history, sessions, and evaluations will be lost.
+                      </p>
+
+                      <div className="flex items-center gap-3 justify-end">
+                          <button
+                              onClick={() => setAgentToDelete(null)}
+                              className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors font-medium text-sm"
+                          >
+                              Cancel
+                          </button>
+                          <button
+                              onClick={confirmDelete}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors font-bold text-sm shadow-lg shadow-red-900/20"
+                          >
+                              Delete Agent
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          )}
+
       <div className="mb-8">
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Database className="text-brand-500" />

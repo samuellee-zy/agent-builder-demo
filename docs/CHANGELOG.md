@@ -9,11 +9,23 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Sidebar Navigation**: Replaced hover-only dropdowns with a dedicated **Chevron Toggle** button for the "Agent Operating Procedure" menu. This allows touch users to expand/collapse submenus explicitly without triggering navigation.
   - **System Status Overlay**: Fixed a z-index conflict where the "System Status" ticker would bleed through the mobile sidebar. Increased sidebar z-index to `z-[100]`.
   - **Pinch-to-Zoom**: Added native touch event handling (`onTouchStart/Move/End`) to the `PanZoomContainer`, enabling smooth pinch-zoom and pan interactions on mobile diagrams.
-  - **Feedback**: Added a floating "Thinking..." indicator (`activeToolLog`) to the Agent Builder's mobile view to ensure users see tool execution status even when the chat log is full.
+    - **Active Tool Log:** added a floating "Thinking..." indicator (`activeToolLog`) to provide visual feedback during long-running tool operations on small screens where the chat might be obscured.
+    - **Control Safety:** Top-left navigation controls ("Back to Chat", "Consult") are shifted right (`left-16`) on mobile to avoid the global Sidebar text/hamburger menu. Zoom controls are lifted (`bottom-28`) to avoid the main action button.
+  - **Viewport Handling:**
+    - **100dvh:** Utilizes `dvh` (Dynamic Viewport Height) units to prevent the "safari bottom bar jump" issue.
+  - **Feature**: Added **"Center View"** button to zoom controls for one-click diagram centering.
+  - **Reliability**: Hardened the "Deploy & Test" button with error handling to catch deployment failures.
 - **Model Updates**:
   - **System Ticker**: Updated the "Live Pulse" ticker to display the active model lineup: **Gemini 2.5 Flash**, **Gemini 3.0 Pro**, **Veo 3.1**, and **Imagen 4**.
 - **Agent Registry**:
   - **Responsive Grid**: Refined grid breakpoints (`grid-cols-1` on mobile) to ensure agent cards use full width for better readability on small screens.
+
+- **Reliability & Fixes**:
+  - **Agent Deletion**: Fixed a critical bug where agents could not be deleted from the registry.
+    - Implemented a custom **Delete Confirmation Modal** in `AgentRegistry.tsx`.
+    - Wired `onDeleteAgent` to `App.tsx` state management to ensure permanent removal from local storage.
+    - Resolved a syntax error that was preventing the deletion logic from executing.
+  - **Linting**: Fixed various TypeScript lint errors in `AgentRegistry` and `App` components.
 
 
 ### 13/12/2025 - Registry UX & Animation Polish
