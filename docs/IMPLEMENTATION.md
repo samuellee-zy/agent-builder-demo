@@ -25,7 +25,7 @@ It implements the **Coordinator Pattern**, where a top-level "Root Agent" decomp
   - **JSON Cleaning:** Implements `cleanJson` utility to strip Markdown fences from LLM responses before parsing.
 - **Pure Coordinator Pattern:** The Architect is instructed to never assign tools to a Root Agent if it has sub-agents. Tools are pushed down to leaf nodes to ensure clean delegation and avoid API conflicts (Search vs Function Calling).
 
-### 2. The Visual Builder (`src/components/AgentBuilder.tsx`)
+### 3. The Visual Builder (`src/components/AgentBuilder.tsx`)
 A state-machine driven component managing the lifecycle of an agent.
 - **State Machine:** Input -> Building -> Review -> Testing.
   - Uses `idb-keyval` to store the **Architect Chat History** locally.
@@ -43,18 +43,25 @@ A state-machine driven component managing the lifecycle of an agent.
   - **Deduping:** Prevents chat clutter by checking for existing confirmation messages before adding new ones.
     - **Fix (12/12/2025):** Updated logic to check the last *visible* message (ignoring hidden system messages) to ensure accurate deduping even after state syncs.
 - **Undo/Revert Architecture:** Maintains a `history` stack of the agent tree. Destructive actions (delete, add sub-agent) call `saveCheckpoint()` first. `handleUndo` restores the previous state.
-- **Mobile Optimization:**
-  - **Touch-Friendly:** Chat input buttons ("Send", "Attach") have enlarged touch targets (>44px) for easier interaction on mobile devices.
-  - **Mobile Inspector:** The "Agent Config" panel slides in as a full-screen overlay on mobile, toggleable via a "Config" button, ensuring it doesn't cramp the diagram view.
-  - **Touch Gestures:** The diagram canvas supports native touch scrolling and panning.
+- **Mobile Optimization Strategy:**
+  - **Touch-First Experience:** 
+    - **PanZoomContainer:** Implemented generic touch event handling (`onTouchStart`, `onTouchMove`, `onTouchEnd`) to support native pinch-to-zoom and panning on mobile devices.
+    - **Touch Targets:** Buttons like "Send" and "Attach" have expanded hit areas (>44px).
+  - **Responsive Layouts:**
+    - **Stacking:** Agent Builder functionality stacks vertically on mobile (Chat below, Diagram above/hidden).
+    - **Overlay Inspector:** The "Agent Config" panel slides in as a full-screen overlay on mobile (z-40), toggleable via a dedicated button.
+    - **Active Tool Log:** added a floating "Thinking..." indicator (`activeToolLog`) to provide visual feedback during long-running tool operations on small screens where the chat might be obscured.
+  - **Viewport Handling:**
+    - **100dvh:** Utilizes `dvh` (Dynamic Viewport Height) units to prevent the "safari bottom bar jump" issue.
+    - **Safe Area Insets:** Adds `pb-[env(safe-area-inset-bottom)]` to critical containers (Registry Grid, Sidebar) to respect iPhone Home Indicator areas.
 - **Tablet & Foldable Strategy (Mobile-Plus):**
   - **Breakpoint Shift:** The application treats devices between **768px and 1023px** (e.g., iPad Mini, Unfolded Foldables) as "Mobile-Plus".
   - **Hidden Sidebar:** The navigation sidebar remains in "drawer mode" (hidden by default) on these devices to maximize the main content area.
   - **Overlay Inspector:** The Agent Inspector remains an overlay (slide-over) rather than a side-panel, ensuring the diagram has enough width to be usable.
 - **Global Dynamic Responsiveness (Fluid Design):**
   - **Fluid CSS:** Utilizes `clamp()`, `min()`, and `max()` functions to scale UI elements linearly with the viewport width, ensuring a perfect fit on any device (320px to 1920px+).
-  - **Auto-Fit Grids:** Tools Library and Watchtower use `grid-cols-[repeat(auto-fit,minmax(...))]` to automatically reflow content without hard breakpoints.
-  - **Dynamic Diagrams:** Agent nodes scale fluidly (`140px` <-> `200px`) to prevent "squished" layouts on narrow mobile screens.
+  - **Auto-Fit Grids:** Tools Library and Watchtower use `grid-cols-[repeat(auto-fit,minmax(...))]` to automatically reflow content.
+  - **Dynamic Diagrams:** Agent nodes scale fluidly (`140px` <-> `200px`).
 - **Node Management:** Recursive update and deletion logic. `deleteNodeFromTree` handles deep removal of nodes.
 - **Sequential Session IDs:** 
   - Instead of random timestamps, new test sessions are assigned strict sequential IDs (1, 2, 3...).
@@ -138,6 +145,10 @@ An **LLM-as-a-Judge** system to stress-test agents.
   - **Edit Integration:**
     - **Direct Handoff:** Added an "Edit in Builder" button in the Architecture view that invokes `handleSelectAgent` from `App.tsx`.
     - **Context Preservation:** Instantly loads the selected agent into the Visual Builder state, allowing for seamless iteration on deployed agents.
+  - **Search & Filtering:**
+    - **Search Bar:** Real-time filtering by agent name, description, or tags.
+    - **Tag Filter:** Dropdown to filter by specific tags (e.g., "Draft", "Production").
+    - **Tag Display:** Agent cards render tags (up to 3) directly in the grid view.
 
 ### 7. The Watchtower (Observability Engine) (`src/services/watchtower.ts`)
 A centralized observability dashboard for analyzing agent performance in the wild.
@@ -148,6 +159,29 @@ A centralized observability dashboard for analyzing agent performance in the wil
 - **Strategic Recommendations:** Generates actionable advice:
   - **Tooling:** Suggests new tools if users ask for unsupported capabilities.
   - **Behavior:** Suggests instruction tweaks if the agent is rude or verbose.
+
+### 8. Overview Dashboard (Command Center) (`src/components/Overview.tsx`)
+A "Single Pane of Glass" for monitoring system health and operational metrics.
+- **Visual Design:** "Command Center" aesthetic with dark-aligned UI, glassmorphism, and subtle pulse animations.
+- **Key Features:**
+  - **System Pulse Ticker:** Real-time status indicators for **Gemini 2.5 Flash**, **Gemini 3.0 Pro**, **Veo 3.1**, and **Imagen 4**.
+  - **Metrics Grid:** High-level counters for Active Agents, Total Sessions, and Global IQ Score (derived from Watchtower data).
+  - **Media Wall:** A horizontal scrolling carousel showcasing creative outputs (Veo Videos, Imagen Images) from across all agent sessions.
+  - **Activity Feed:** A unified timeline of recent system events (Agent Creation, Session Runs).
+  - **Workbench:** Quick-access actions for creating agents or jumping to specific tools.
+- **Responsive Strategy:**
+  - **Adaptive Grid:** Metrics scale from 1 column (Mobile) to 3 columns (Desktop).
+  - **Mobile Overlay Fix:** "System Status" ticker sits at `z-50`, while the Sidebar sits at `z-[100]`. This ensures the mobile navigation drawer always covers the dashboard content when open.
+  - **Media Carousel:** Uses CSS Scroll Snap for touch-friendly horizontal browsing on mobile devices.
+  - **Activity Feed:** Stacks vertically below the workbench on mobile, moves side-by-side on desktop.
+
+### 9. Application Shell (`src/components/Sidebar.tsx` & `src/App.tsx`)
+- **Navigation Architecture:**
+  - **Hybrid Navigation:** Sidebar on Desktop, Off-Canvas Drawer on Mobile/Tablet.
+  - **Explicit Toggle:** The "Agent Operating Procedure" menu features a dedicated **Chevron Toggle** button.
+    - **Tap Chevron:** Toggles the submenu (Registry/Tools) without navigating.
+    - **Tap Text:** Navigates to the main AOP page.
+    - This eliminates reliance on hover states, ensuring full functionality on touch devices.
 
 
 

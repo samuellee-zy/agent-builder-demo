@@ -27,6 +27,11 @@ export interface GenerateContentOptions {
 /**
  * Sends a generation request to the backend API.
  * 
+ * DESIGN:
+ * - Wraps standard `fetch` with error handling.
+ * - Supports sending `image` data for multimodal requests.
+ * - Automatically stringifies body and parses JSON response.
+ * 
  * @param options - Configuration including model, prompt, and context.
  * @returns The parsed JSON response from the backend.
  * @throws Error if the API call fails or returns non-JSON error.

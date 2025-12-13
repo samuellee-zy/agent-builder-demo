@@ -7,7 +7,7 @@
 
 ### 🧠 Intelligent Design
 *   **Conversational Architect:** Describe your goal, and the AI Architect will design the entire system.
-*   **Model Selection:** Choose between **Gemini 2.5 Flash** (Speed) or **Gemini 3.0 Pro** (Reasoning) for your design partner.
+*   **Model Selection:** Choose between **Gemini 2.5 Flash** (Speed) or **Gemini 3.0 Pro** (Reasoning) for your design partner. System supports **Veo 3.1** and **Imagen 4** for media generation.
 *   **Session Isolation:** "New Agent" always starts fresh, while history is preserved for every specific agent draft.
 *   **Persistent Memory:** Chat sessions are saved locally (IndexedDB), so you never lose your context even after a refresh.
 *   **Instruction Enhancement:** One-click "Enhance" button to professionally rewrite agent instructions using Gemini.
@@ -60,10 +60,12 @@
 *   **Mock Enterprise Tools**: CRM, Order Status, and Ticketing systems for business demos.
 
 ### 💾 Registry & History
+*   **Agent Search & Filter:** Instantly find agents by name, description, or tags using the real-time search bar and tag dropdown.
 *   **Persistent Storage:** Save agents to LocalStorage.
 *   **Rich History Replay:** Review past sessions with full media rendering (Veo/Imagen).
 *   **Evaluation Logs:** Access historical test reports and drill down into individual scenario transcripts.
-*   **Tool Library:** Inspect code and test functions for over 10+ built-in tools.
+*   **Tool Library:** Inspect code and test functions for over 10+ built-in tools. Now features improved tag visibility and cleanup.
+
 
 ## 💻 Tech Stack
 *   **Frontend:** React 18, TypeScript, Tailwind CSS (via CDN/Config)

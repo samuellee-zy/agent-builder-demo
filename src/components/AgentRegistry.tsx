@@ -2,16 +2,18 @@
 import React, { useState } from 'react';
 import { Agent, AgentSession, ChatMessage, EvaluationReport, EvaluationSession, AVAILABLE_MODELS } from '../types';
 import { AgentDiagram } from './AgentDiagram';
+import { AgentBuilder } from './AgentBuilder';
 import { AVAILABLE_TOOLS_REGISTRY } from '../services/tools';
 import { VideoMessage } from './VideoMessage';
 import { EvaluationService } from '../services/evaluation';
-import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { Bot, Clock, ArrowLeft, MessageSquare, Database, Terminal, Film, Image as ImageIcon, X, FileText, Layers, ArrowDownCircle, Trash2, Activity, Play, CheckCircle, AlertTriangle, Zap, ChevronDown, ChevronUp, Pencil, RefreshCw, Search, Filter } from 'lucide-react';
 
 interface AgentRegistryProps {
   agents: Agent[];
-  onDeleteAgent: (id: string) => void;
-  onUpdateAgent?: (agent: Agent) => void; // New prop to save evaluations
-    onEditAgent?: (agent: Agent) => void; // New prop to edit agent
+    onSelectAgent: (agent: Agent) => void;
+    onEditAgent?: (agent: Agent) => void;
+    onUpdateAgent: (agent: Agent) => void; // New Prop for embedded builder updates
+    onDeleteAgent?: (id: string) => void;
 }
 
 // Date formatter helper
@@ -42,7 +44,7 @@ const formatDate = (date: Date | string, includeTime = false) => {
  * 4. **Evaluation Tab**: Interface to trigger and view results of "LLM-as-a-Judge" audits.
  */
 
-export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent, onEditAgent }) => {
+export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent, onEditAgent, onSelectAgent }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeTab, setActiveTab] = useState<'architecture' | 'history' | 'evaluation'>('architecture');
   
@@ -58,9 +60,26 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalProgress, setEvalProgress] = useState('');
   const [selectedReport, setSelectedReport] = useState<EvaluationReport | null>(null);
+    const showMobileDetail = !!selectedAgent;
+
+    // Filter Logic
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+    // Get all unique tags from all agents
+    const allTags = Array.from(new Set(agents.flatMap(a => a.tags || []))).sort();
+
+    const filteredAgents = agents.filter(agent => {
+        const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (agent.tags && agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
+        const matchesTag = selectedTag ? agent.tags?.includes(selectedTag) : true;
+        return matchesSearch && matchesTag;
+    });
 
     /**
      * Helper to recursively count Models and Tools in an agent tree.
+     * Used for the statistics badges on the agent cards.
      */
   const countNodes = (agent: Agent): { models: number, tools: number } => {
     let models = agent.type === 'agent' ? 1 : 0;
@@ -95,9 +114,22 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
       }
   };
 
+    const handleSelectAgent = (agent: Agent) => {
+        setSelectedAgent(agent);
+        if (onSelectAgent) {
+            onSelectAgent(agent);
+        }
+    };
+
     /**
      * Triggers a new Evaluation Audit.
      * Uses `EvaluationService` to run simulations and generate a report.
+     * 
+     * FLOW:
+     * 1. Starts UI loading state.
+     * 2. Calls `service.runFullEvaluation`.
+     * 3. Saves result to Agent object.
+     * 4. Persists updated Agent to storage.
      */
   const handleRunEvaluation = async () => {
       if (!selectedAgent) return;
@@ -475,272 +507,177 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   };
 
   const renderEvaluationsList = () => {
-    if (!selectedAgent) return null;
-    const evaluations = selectedAgent.evaluations || [];
-
-    return (
-        <div className="flex-1 p-8 overflow-y-auto">
-            {!selectedReport && (
-                <>
-                     {/* Config Panel */}
-                    <div className="mb-8 bg-slate-900 border border-slate-800 rounded-xl p-6">
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-1">New Evaluation</h3>
-                                <p className="text-sm text-slate-400">Configure parameters to stress-test this agent.</p>
-                            </div>
-                            <button 
-                                onClick={handleRunEvaluation}
-                                disabled={isEvaluating}
-                                className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isEvaluating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Play size={16} />}
-                                {isEvaluating ? 'Running...' : 'Start Evaluation'}
-                            </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Number of Scenarios</label>
-                                <input 
-                                    type="number" 
-                                    min={1} 
-                                    max={10} 
-                                    value={evalConfig.scenarioCount}
-                                    onChange={(e) => setEvalConfig({...evalConfig, scenarioCount: parseInt(e.target.value) || 1})}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-brand-500 outline-none"
-                                />
-                                <p className="text-[10px] text-slate-500 mt-1.5">
-                                    {evalConfig.scenarioCount <= 3 ? 'Running concurrently (Fast)' : 'Running sequentially (Safe)'}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">User Simulator Model</label>
-                                <select 
-                                    value={evalConfig.simulatorModel}
-                                    onChange={(e) => setEvalConfig({...evalConfig, simulatorModel: e.target.value})}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-brand-500 outline-none"
-                                >
-                                    {AVAILABLE_MODELS.filter(m => !m.id.includes('video') && !m.id.includes('image')).map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {isEvaluating && (
-                            <div className="mt-6 p-4 bg-slate-950 rounded-lg border border-slate-800 flex items-center gap-3 text-sm text-slate-300">
-                                <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></span>
-                                {evalProgress}
-                            </div>
-                        )}
-                    </div>
-
-                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Past Reports</h3>
-                    <div className="grid grid-cols-1 gap-4">
-                        {evaluations.length === 0 && <p className="text-slate-500 italic">No evaluations run yet.</p>}
-                        {evaluations.map(report => (
-                            <div 
-                                key={report.id}
-                                onClick={() => setSelectedReport(report)}
-                                className="bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-xl p-4 cursor-pointer transition-all hover:bg-slate-800/80"
-                            >
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Activity size={18} className={report.summary.avgScore >= 8 ? 'text-green-400' : 'text-yellow-400'} />
-                                        <span className="font-bold text-white text-lg">{report.summary.avgScore}/10</span>
-                                    </div>
-                                    <span className="text-xs text-slate-500">{formatDate(report.timestamp, true)}</span>
-                                </div>
-                                <div className="grid grid-cols-4 gap-2 text-xs text-slate-400">
-                                    <div>Latency: {report.summary.avgResponseScore}</div>
-                                    <div>Accuracy: {report.summary.avgAccuracy}</div>
-                                    <div>Sat: {report.summary.avgSatisfaction}</div>
-                                    <div>Stability: {report.summary.avgStability}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-            
-            {selectedReport && renderEvaluationReport()}
-        </div>
-    );
-  };
-
-    // Mobile Detail View State
-    const [showMobileDetail, setShowMobileDetail] = useState(false);
-
-    // When an agent is selected, show detail view on mobile
-    const handleAgentSelect = (agent: Agent) => {
-        setSelectedAgent(agent);
-        setShowMobileDetail(true);
+        return null;
     };
 
-    const handleBackToRegistry = () => {
-        setShowMobileDetail(false);
-        setSelectedAgent(null);
-    };
 
-  if (selectedAgent) {
-    return (
-        <div className={`flex flex-col md:flex-row h-full bg-slate-900 ${showMobileDetail ? 'fixed inset-0 z-50' : ''}`}>
-            {/* Detail Sidebar - Hidden on Mobile unless it's the active view in stack (conceptually, but here we just hide it and use main content) */}
-            {/* Actually, for mobile we want the Detail Sidebar content to be part of the main scrollable view or a separate tab? 
-             The current design has a sidebar for tabs (Architecture/History/Eval) and a main content area.
-             On mobile, we should probably stack them or use a bottom nav?
-             Let's try to keep the sidebar as a top nav or collapsible.
-             For now, let's just make the sidebar full width on mobile.
-         */}
+    // --- MAIN RENDER ---
 
-            <div className={`${showMobileDetail && (!selectedSession || activeTab !== 'history') ? 'flex' : 'hidden md:flex'} w-full md:w-[clamp(250px,30vw,350px)] bg-slate-900 border-r border-slate-800 flex-col h-auto md:h-full flex-shrink-0 relative z-20`}>
-             <div className="p-4 border-b border-slate-800 flex items-center gap-2 bg-slate-900">
-                    <button onClick={handleBackToRegistry} className="md:hidden p-2 hover:bg-slate-800 rounded-full text-slate-400 mr-2">
-                     <ArrowLeft size={20} />
-                 </button>
-                    <button onClick={() => { setSelectedAgent(null); setSelectedSession(null); setSelectedNodeId(null); setSelectedReport(null); setActiveTab('architecture'); }} className="hidden md:block hover:text-brand-400 transition-colors">
-                        <ArrowLeft size={20} />
-                    </button>
-                    <h2 className="font-bold text-white truncate text-sm flex-1">{selectedAgent.name}</h2>
-                    {/* Mobile Tab Toggle? */}
-             </div>
-             
-             <div className="p-5 border-b border-slate-800">
-                <p className="text-xs text-slate-400 mb-4 line-clamp-3">{selectedAgent.description}</p>
-                <div className="flex gap-4">
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                        <Bot size={14} className="text-brand-400" />
-                        <span className="text-xs font-bold">{countNodes(selectedAgent).models} Agents</span>
+    const renderDetailPanel = () => {
+        if (!selectedAgent) return null;
+
+        return (
+            <div className="fixed inset-0 z-50 bg-slate-950 flex animate-in slide-in-from-right duration-300">
+                {/* Left Sidebar Navigation */}
+                <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
+                    <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                        <button
+                            onClick={() => setSelectedAgent(null)}
+                            className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors"
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                        <h2 className="font-bold text-white truncate">Agent Details</h2>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                        <Terminal size={14} className="text-yellow-400" />
-                        <span className="text-xs font-bold">{countNodes(selectedAgent).tools} Tools</span>
+
+                    <div className="p-6 border-b border-slate-800">
+                        <div className="w-16 h-16 bg-gradient-to-br from-brand-600 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-brand-500/20">
+                            <Bot size={32} className="text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">{selectedAgent.name}</h3>
+                        <p className="text-xs text-slate-500 font-mono mb-4">{selectedAgent.model}</p>
+
+                        <div className="flex flex-wrap gap-2">
+                            {selectedAgent.tags?.map(tag => (
+                                <span key={tag} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">{tag}</span>
+                            ))}
+                        </div>
+                    </div>
+
+                    <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                        <button
+                            onClick={() => setActiveTab('architecture')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'architecture'
+                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                        >
+                            <Layers size={18} />
+                            <span className="font-medium">Architecture</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'history'
+                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                        >
+                            <Clock size={18} />
+                            <span className="font-medium">Session History</span>
+                            {selectedAgent.sessions && selectedAgent.sessions.length > 0 && (
+                                <span className="ml-auto text-[10px] bg-black/20 px-2 py-0.5 rounded-full">
+                                    {selectedAgent.sessions.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('evaluation')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'evaluation'
+                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                        >
+                            <CheckCircle size={18} />
+                            <span className="font-medium">Evaluations</span>
+                        </button>
+                    </nav>
+
+                    <div className="p-4 border-t border-slate-800">
+                        <button
+                            onClick={() => onEditAgent?.(selectedAgent)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors border border-slate-700 font-medium text-sm"
+                        >
+                            <Pencil size={16} />
+                            Edit Agent
+                        </button>
                     </div>
                 </div>
-             </div>
 
-             {/* Tab Navigation */}
-             <div className="p-2 space-y-1">
-                 <button 
-                    onClick={() => { setActiveTab('architecture'); setSelectedSession(null); setSelectedReport(null); }}
-                    className={`w-full text-left px-3 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors ${activeTab === 'architecture' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                 >
-                     <Layers size={14} /> Architecture
-                 </button>
-                 <button 
-                    onClick={() => { setActiveTab('history'); setSelectedReport(null); }}
-                    className={`w-full text-left px-3 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors ${activeTab === 'history' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                 >
-                     <Clock size={14} /> Session History
-                 </button>
-                 <button 
-                    onClick={() => { setActiveTab('evaluation'); setSelectedSession(null); }}
-                    className={`w-full text-left px-3 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors ${activeTab === 'evaluation' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                 >
-                     <Activity size={14} /> Evaluation
-                 </button>
-             </div>
-             
-             {activeTab === 'history' && (
-                    <div className="flex-1 overflow-y-auto p-4 border-t border-slate-800 min-h-[200px] md:min-h-0">
-                     <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Recorded Sessions</h3>
-                     {renderSessionList()}
-                 </div>
-             )}
-
-                {/* Mobile: Show Content Below Tabs if Architecture/Eval? 
-                 Actually, the original design has a side-by-side layout.
-                 On mobile, if we select Architecture, we probably want to hide this "Sidebar" and show the content?
-                 Or maybe we treat this "Sidebar" as the MAIN view for mobile when an agent is selected, 
-                 and the "Content" is accessed via these tabs?
-                 
-                 Let's try a simpler approach:
-                 On mobile, this "Sidebar" IS the view. 
-                 If activeTab is 'architecture', we show the diagram in a modal or push view?
-                 
-                 Alternative: 
-                 Keep the side-by-side but stack them on mobile?
-                 The "Sidebar" becomes the top part, "Content" becomes bottom?
-                 
-                 Let's go with: 
-                 Mobile: "Sidebar" is the navigation menu. 
-                 Clicking a tab switches the view to that content.
-                 BUT 'history' renders the list IN the sidebar.
-                 
-                 Let's just hide the "Content" area on mobile when "Sidebar" is visible?
-                 No, that's confusing.
-                 
-                 Let's use a Tab Bar for mobile?
-             */}
-         </div>
-
-            {/* Main Content Area - Hidden on mobile if we are "in the menu"? 
-             Actually, let's just stack them on mobile.
-             Sidebar (Agent Info + Tabs) -> Content.
-             But the Sidebar is `h-full`.
-             
-             Let's make the Sidebar `h-auto` on mobile and `flex-shrink-0`.
-         */}
-            <div className={`${showMobileDetail ? 'flex' : 'hidden'} md:flex flex-1 bg-slate-950 relative overflow-hidden flex-col ${activeTab === 'history' && !selectedSession ? 'hidden md:flex' : ''}`}>
-                {/* Mobile Back Button for Content View if needed? No, the sidebar has it. */}
-
-             {/* Content Switcher */}
-             {activeTab === 'architecture' && (
-                    <div className="flex-1 flex overflow-hidden relative min-h-[400px] lg:min-h-0">
-                        {onEditAgent && selectedAgent && (
-                            <button
-                                onClick={() => onEditAgent(selectedAgent)}
-                                className="absolute top-4 right-4 z-40 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all hover:scale-105"
-                            >
-                                <Pencil size={16} />
-                                <span className="hidden sm:inline">Edit in Builder</span>
-                            </button>
-                        )}
-                        <div className="flex-1 h-full overflow-auto p-4 lg:p-10 flex items-center justify-center bg-slate-950/50 touch-pan-x touch-pan-y">
-                            <div className="transform scale-75 lg:scale-90 origin-center">
-                            <AgentDiagram 
-                                agent={selectedAgent} 
-                                selectedId={selectedNodeId} 
-                                onSelect={(a) => setSelectedNodeId(a.id)} 
-                                readOnly={true}
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col overflow-hidden bg-slate-950 relative">
+                    {activeTab === 'architecture' && (
+                        <div className="h-full relative overflow-hidden flex flex-col">
+                            <AgentBuilder
+                                initialAgent={selectedAgent}
+                                onAgentCreated={(updatedAgent) => {
+                                    onUpdateAgent(updatedAgent);
+                                    setSelectedAgent(updatedAgent);
+                                }}
+                                isEmbedded={true}
+                                onSelectAgent={(agent) => {
+                                    // Optional: Sync selection back to registry if needed
+                                    // For now just logging or ignoring is fine, or simple state update
+                                }}
                             />
                         </div>
-                    </div>
-                        <div className={`
-                            fixed inset-y-0 right-0 w-96 bg-slate-900 border-l border-slate-800 shadow-2xl z-50 transform transition-transform duration-300
-                            lg:static lg:transform-none lg:z-auto
-                            ${selectedNodeId ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-                            ${!selectedNodeId && 'lg:hidden'} 
-                        `}>
-                            {/* Note: We need to handle the case where selectedNodeId is null but on Desktop we might want to show something or just hide it? 
-                                In Builder, it shows "Select an agent". 
-                                Here, renderNodeDetails returns null if no selectedNode.
-                                Let's wrap renderNodeDetails content in this div.
-                            */}
-                            {selectedNodeId && renderNodeDetails()}
+                    )}
+
+                    {activeTab === 'history' && (
+                        <div className="h-full flex">
+                            {/* Session List Sidebar */}
+                            <div className="w-80 border-r border-slate-800 bg-slate-900/50 flex flex-col">
+                                <div className="p-4 border-b border-slate-800">
+                                    <h3 className="font-bold text-white text-sm">Recorded Sessions</h3>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-2">
+                                    {renderSessionList()}
+                                </div>
+                            </div>
+
+                            {/* Session Content */}
+                            <div className="flex-1 bg-slate-950 relative">
+                                {selectedSession ? (
+                                    renderSessionViewer(
+                                        selectedSession.messages,
+                                        `Session ${selectedSession.id.length > 6 ? '#' + selectedSession.id.slice(-4) : '#' + selectedSession.id}`,
+                                        formatDate(selectedSession.timestamp, true)
+                                    )
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                                        <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                                            <MessageSquare size={32} className="opacity-20" />
+                                        </div>
+                                            <p className="font-medium">Select a session to view details</p>
+                                        </div>
+                                )}
+                            </div>
                         </div>
-                 </div>
-             )}
+                    )}
 
-             {activeTab === 'history' && (
-                 selectedSession ? renderSessionViewer(
-                     selectedSession.messages, 
-                     `Session ${selectedSession.id.length > 6 ? '#' + selectedSession.id.slice(-4) : '#' + selectedSession.id}`, 
-                     formatDate(selectedSession.timestamp, true),
-                     () => setSelectedSession(null)
-                 ) : (
-                            <div className="hidden md:flex flex-1 items-center justify-center text-slate-500 text-sm italic">
-                         Select a session from the sidebar to view details.
-                     </div>
-                 )
-             )}
+                    {activeTab === 'evaluation' && (
+                        <div className="h-full p-8 flex flex-col items-center justify-center text-slate-500">
+                            <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 border border-slate-800">
+                                <CheckCircle size={40} className="text-slate-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Evaluation Module</h3>
+                            <p className="max-w-md text-center text-slate-400 mb-8">Run comprehensive benchmarks and automated tests against your agent to measure performance, accuracy, and latency.</p>
+                            <button
+                                onClick={handleRunEvaluation}
+                                disabled={isEvaluating}
+                                className="px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-lg shadow-brand-500/20 transition-all flex items-center gap-2"
+                            >
+                                {isEvaluating ? (
+                                    <>
+                                        <RefreshCw className="animate-spin" />
+                                        Running Tests...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play size={20} />
+                                        Start New Evaluation
+                                    </>
+                                )}
+                            </button>
+                            {evalProgress && (
+                                <p className="mt-4 text-xs font-mono text-brand-400 animate-pulse">{evalProgress}</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
-             {activeTab === 'evaluation' && renderEvaluationsList()}
-         </div>
-      </div>
-    );
-  }
 
   return (
       <div className={`flex flex-col h-full bg-slate-900 p-4 md:p-8 overflow-y-auto ${showMobileDetail ? 'hidden md:flex' : 'flex'}`}>
@@ -752,14 +689,70 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
               <p className="text-slate-400 text-sm md:text-base">Manage, review, and audit your deployed agent systems.</p>
       </div>
 
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-6">
-        {agents.length === 0 && <p className="text-slate-500 italic">No agents found in registry.</p>}
-        {agents.map((agent) => {
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+              {/* Search Bar */}
+              <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <input
+                      type="text"
+                      placeholder="Search agents by name, description, or tags..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 text-white pl-10 pr-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder:text-slate-500"
+                  />
+              </div>
+
+              {/* Tag Filter */}
+              <div className="relative group">
+                  <button className="flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl hover:text-white hover:border-slate-600 transition-colors">
+                      <Filter size={18} />
+                      <span>{selectedTag || 'All Tags'}</span>
+                      <ChevronDown size={14} />
+                  </button>
+
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-20 hidden group-hover:block animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                          onClick={() => setSelectedTag(null)}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-700 ${!selectedTag ? 'text-brand-400 font-bold bg-slate-700/50' : 'text-slate-300'}`}
+                      >
+                          All Tags
+                      </button>
+                      {allTags.map(tag => (
+                          <button
+                              key={tag}
+                              onClick={() => setSelectedTag(tag)}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-700 ${selectedTag === tag ? 'text-brand-400 font-bold bg-slate-700/50' : 'text-slate-300'}`}
+                          >
+                              {tag}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+              {filteredAgents.length === 0 && (
+                  <div className="col-span-full flex flex-col items-center justify-center p-12 text-slate-500">
+                      <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                          <Search size={32} className="opacity-20" />
+                      </div>
+                      <p>No agents found matching your criteria.</p>
+                      {(searchQuery || selectedTag) && (
+                          <button
+                              onClick={() => { setSearchQuery(''); setSelectedTag(null); }}
+                              className="mt-2 text-brand-400 hover:text-brand-300 text-sm font-bold"
+                          >
+                              Clear Filters
+                          </button>
+                      )}
+                  </div>
+              )}
+              {filteredAgents.map((agent) => {
             const stats = countNodes(agent);
             return (
                 <div 
                     key={agent.id}
-                    onClick={() => handleAgentSelect(agent)}
+                    onClick={() => setSelectedAgent(agent)}
                     className="relative bg-slate-800 border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-brand-500/50 hover:bg-slate-800/80 transition-all group"
                 >
                     <div className="flex justify-between items-start mb-3">
@@ -782,6 +775,20 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
                     <h3 className="text-lg font-bold text-white mb-1 pr-8">{agent.name}</h3>
                     <p className="text-sm text-slate-400 line-clamp-2 mb-4 h-10">{agent.description}</p>
                     
+                    {/* Tags on Card */}
+                    {agent.tags && agent.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                            {agent.tags.slice(0, 3).map(tag => (
+                                <span key={tag} className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-700/50">
+                                    {tag}
+                                </span>
+                            ))}
+                            {agent.tags.length > 3 && (
+                                <span className="text-[10px] text-slate-500 px-1">+{agent.tags.length - 3}</span>
+                            )}
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-4 pt-4 border-t border-slate-700/50">
                         <div className="text-xs text-slate-500 flex items-center gap-1">
                             <Bot size={12} /> {stats.models} Agents
@@ -797,6 +804,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
             )
         })}
       </div>
+          {renderDetailPanel()}
     </div>
   );
 };

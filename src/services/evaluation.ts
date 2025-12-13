@@ -288,6 +288,23 @@ Reply as the user in the scenario: ${scenario}`
    * It analyzes the full conversation context (compressed) and outputs 
    * structured scores (1-10) with reasoning.
    */
+  /**
+   * Uses "LLM as a Judge" pattern to evaluate the transcript.
+   * 
+   * METHODOLOGY:
+   * 1. Uses Gemini 3 Pro (Reasoning) to behave as a strict QA judge.
+   * 2. Feeds the COMPRESSED transcript (no images) to the model.
+   * 3. Asks for structured JSON output with scores (1-10) and reasoning for:
+   *    - Response Time
+   *    - Accuracy
+   *    - User Satisfaction
+   *    - System Stability
+   * 
+   * @param scenario - The intent being tested.
+   * @param transcript - The full chat history.
+   * @param errorCount - API errors during the session.
+   * @param latencies - Array of latency values (ms).
+   */
   private async evaluateTranscript(
     scenario: string, 
     transcript: ChatMessage[],
@@ -367,6 +384,11 @@ Reply as the user in the scenario: ${scenario}`
 
   /**
    * Aggregates results into a full report.
+   * Calculates overall averages and compiles individual session details.
+   * 
+   * @param agent - The agent being tested.
+   * @param config - Configuration for the simulator.
+   * @param onProgress - Callback for UI updates.
    */
   async runFullEvaluation(
     agent: Agent, 

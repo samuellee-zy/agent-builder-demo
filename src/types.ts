@@ -27,6 +27,8 @@ export interface Agent {
   tools: string[];
   /** Model ID (e.g., 'gemini-2.5-flash'). */
   model: string;
+  /** Tags for categorization/filtering. */
+  tags?: string[];
   /** Creation timestamp. */
   createdAt: Date;
   /** Recursive list of sub-agents (children). */
@@ -40,8 +42,8 @@ export interface Agent {
   type: 'agent' | 'group';
   /**
    * Execution mode for groups:
-   * 'sequential': A -> B -> C (Pipeline).
-   * 'concurrent': A + B + C (Parallel).
+   * 'sequential': A -> B -> C (Pipeline). Output of A is context for B.
+   * 'concurrent': A + B + C (Parallel). All run independently, results aggregated.
    */
   groupMode?: 'sequential' | 'concurrent';
 
@@ -82,6 +84,7 @@ export interface ChatMessage {
   /**
    * Structured data for UI visualization of tool executions.
    * Allows the UI to render "Thinking..." states or specific tool outputs.
+   * Captured by the Orchestrator during the Function Calling loop.
    */
   toolCalls?: { name: string; args: any; result?: any }[];
 

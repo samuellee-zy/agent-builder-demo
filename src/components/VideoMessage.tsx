@@ -74,7 +74,7 @@ export const VideoMessage: React.FC<{ src: string }> = ({ src }) => {
                 </a>
             </div>
             {blobUrl ? (
-                <video controls autoPlay loop className="w-full max-h-80 bg-black" src={blobUrl}>
+                <video controls className="w-full max-h-80 bg-black" src={blobUrl}>
                     Your browser does not support the video tag.
                 </video>
             ) : (

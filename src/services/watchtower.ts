@@ -22,6 +22,8 @@ const cleanJson = (text: string): string => {
 };
 
 // Strip heavy base64 data to save tokens during analysis
+// This is critical because "Reasoning" models (Gemini 3 Pro) have high token costs
+// and we don't need pixel data to understand the "Intent" of a session.
 const compressTranscript = (messages: any[]): string => {
     return messages.map(m => {
         let content = m.content;
@@ -40,6 +42,15 @@ export class WatchtowerService {
   constructor() { } // Static utility class pattern
 
 
+  /**
+   * Main Analysis Pipeline.
+   * 1. Filters valid sessions.
+   * 2. Compresses transcripts (Token Optimization).
+   * 3. Sends to Gemini 3 Pro (Reasoning) for Intent Clustering and Strategic Advice.
+   * 
+   * @param agent - The agent to analyze.
+   * @returns {Promise<WatchtowerAnalysis>} The structured analysis report.
+   */
   async runAnalysis(agent: Agent): Promise<WatchtowerAnalysis> {
     const sessions = agent.sessions || [];
     

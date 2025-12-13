@@ -7,6 +7,7 @@ import { CategoryDropdown } from './CategoryDropdown';
 import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator, X, Play, ChevronRight, MapPin, Train, Search, ChevronLeft, Globe, Users, Package, BookOpen, Ticket, FileText, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { get, set } from 'idb-keyval';
 
 /**
  * @file src/components/ToolsLibrary.tsx
@@ -30,13 +31,26 @@ export const ToolsLibrary: React.FC = () => {
   const [testParams, setTestParams] = useState<Record<string, string>>({});
   const [executionResult, setExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+    const [customToolTags, setCustomToolTags] = useState<Record<string, string[]>>({});
+
+    // Load custom tags
+    React.useEffect(() => {
+        get('custom_tool_tags').then((val) => {
+            if (val) setCustomToolTags(val);
+        });
+    }, []);
 
     // Filter & Pagination Logic
-    const uniqueTags = Array.from(new Set(AVAILABLE_TOOLS_LIST.flatMap(t => t.tags || [t.category]))).sort();
+    const uniqueTags = Array.from(new Set(AVAILABLE_TOOLS_LIST.flatMap(t => {
+        const custom = customToolTags[t.id] || [];
+        return [...(t.tags || [t.category]), ...custom];
+    }))).sort();
     const allTags = ['All', ...uniqueTags];
 
     const filteredTools = AVAILABLE_TOOLS_LIST.filter(tool => {
-        const toolTags = tool.tags || [tool.category];
+        const custom = customToolTags[tool.id] || [];
+        const toolTags = [...(tool.tags || [tool.category]), ...custom];
+
         const matchesTag = selectedTag === 'All' || toolTags.includes(selectedTag);
         const searchLower = searchQuery.toLowerCase();
         const matchesSearch = tool.name.toLowerCase().includes(searchLower) ||
@@ -100,6 +114,9 @@ export const ToolsLibrary: React.FC = () => {
     /**
      * Executes the selected tool with the current test parameters.
      * Displays the valid JSON result or error message.
+     * 
+     * NOTE: This executes the REAL tool logic (e.g. fetching NSW Trains API),
+     * not a simulation, unless the tool itself is a mock.
      */
   const handleRunMock = async () => {
     if (!selectedTool) return;
@@ -136,13 +153,6 @@ export const ToolsLibrary: React.FC = () => {
                             {selectedTool.id}
                           </code>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                          {(selectedTool.tags || [selectedTool.category]).map((tag, i) => (
-                              <span key={i} className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                  {tag}
-                              </span>
-                          ))}
-                      </div>
                   </div>
                   <button 
                       onClick={() => setSelectedTool(null)}
@@ -153,12 +163,60 @@ export const ToolsLibrary: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar bg-slate-950">
-                  {/* Description */}
+                  <div className="space-y-4">
+                      {/* Tool Tags */}
+                      <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase flex items-center justify-between mb-2">
+                              <span>Tags</span>
+                          </label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                              {/* Combine static and custom tags */}
+                              {Array.from(new Set([...(selectedTool.tags || [selectedTool.category]), ...(customToolTags[selectedTool.id] || [])])).map(tag => (
+                                  <span key={tag} className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 flex items-center gap-1 group/tag">
+                                      {tag}
+                                      {(customToolTags[selectedTool.id] || []).includes(tag) && (
+                                          <button
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const newTags = (customToolTags[selectedTool.id] || []).filter(t => t !== tag);
+                                                  const newMap = { ...customToolTags, [selectedTool.id]: newTags };
+                                                  setCustomToolTags(newMap);
+                                                  set('custom_tool_tags', newMap);
+                                              }}
+                                              className="hover:text-white"
+                                          >
+                                              <X size={10} />
+                                          </button>
+                                      )}
+                                  </span>
+                              ))}
+                          </div>
+                          <input
+                              type="text"
+                              placeholder="+ Add tag..."
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                              onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                      const val = e.currentTarget.value.trim();
+                                      if (val) {
+                                          const current = customToolTags[selectedTool.id] || [];
+                                          if (!current.includes(val)) {
+                                              const newMap = { ...customToolTags, [selectedTool.id]: [...current, val] };
+                                              setCustomToolTags(newMap);
+                                              set('custom_tool_tags', newMap);
+                                          }
+                                          e.currentTarget.value = '';
+                                      }
+                                  }
+                              }}
+                          />
+                      </div>
+
                   <div>
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description</h4>
-                      <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-3 rounded border border-slate-800">
-                          {selectedTool.description}
-                      </p>
+                          <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Description</label>
+                          <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                              {selectedTool.description}
+                          </p>
                   </div>
 
                   {/* Schema */}
@@ -166,22 +224,36 @@ export const ToolsLibrary: React.FC = () => {
                     <div>
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Parameter Schema</h4>
                         <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-                            {hasParams ? Object.entries(params).map(([key, schema]: any) => (
-                                <div key={key} className="p-3 border-b border-slate-800 last:border-0 flex flex-col gap-1">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-mono text-brand-300">{key}</span>
-                                        <span className="text-[10px] text-slate-500 bg-slate-950 px-1.5 rounded uppercase">
-                                            {schema.type}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-400">{schema.description}</p>
-                                    {requiredParams.includes(key) && (
-                                        <span className="text-[10px] text-amber-500 font-medium">Required</span>
-                                    )}
-                                </div>
-                            )) : (
-                                <div className="p-4 text-xs text-slate-500 italic">No parameters required.</div>
-                            )}
+                                  <div className="overflow-x-auto">
+                                      <table className="w-full text-left text-xs">
+                                          <thead className="bg-slate-800/50 text-slate-400 font-medium">
+                                              <tr>
+                                                  <th className="px-4 py-2">Name</th>
+                                                  <th className="px-4 py-2">Type</th>
+                                                  <th className="px-4 py-2">Description</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-800">
+                                              {Object.entries(selectedTool.functionDeclaration.parameters?.properties || {}).map(([key, prop]: [string, any]) => (
+                                                  <tr key={key} className="hover:bg-slate-800/30">
+                                                      <td className="px-4 py-2 font-mono text-brand-300">
+                                                          {key}
+                                                          {(selectedTool.functionDeclaration.parameters?.required || []).includes(key) && (
+                                                              <span className="text-red-400 ml-1">*</span>
+                                                          )}
+                                                      </td>
+                                                      <td className="px-4 py-2 text-purple-300 font-mono">{prop.type}</td>
+                                                      <td className="px-4 py-2 text-slate-400">{prop.description}</td>
+                                                  </tr>
+                                              ))}
+                                              {Object.keys(selectedTool.functionDeclaration.parameters?.properties || {}).length === 0 && (
+                                                  <tr>
+                                                      <td colSpan={3} className="px-4 py-3 text-center text-slate-500 italic">No parameters required.</td>
+                                                  </tr>
+                                              )}
+                                          </tbody>
+                                      </table>
+                                  </div>
                         </div>
                     </div>
                   )}
@@ -327,6 +399,7 @@ export const ToolsLibrary: React.FC = () => {
                           )}
                       </div>
                   </div>
+                  </div>
               </div>
           </div>
       );
@@ -407,7 +480,7 @@ export const ToolsLibrary: React.FC = () => {
                             
                                 <div className="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 flex items-center justify-between mt-auto">
                                     <div className="flex flex-wrap gap-1">
-                                        {(tool.tags || [tool.category]).map((tag, i) => (
+                                        {Array.from(new Set([...(tool.tags || [tool.category]), ...(customToolTags[tool.id] || [])])).map((tag, i) => (
                                             <span key={i} className="text-[10px] uppercase tracking-wider text-slate-500 font-bold bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-700/50">
                                                 {tag}
                                             </span>

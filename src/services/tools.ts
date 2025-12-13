@@ -17,6 +17,11 @@ import { Type } from '@google/genai';
  * 2. Ensure it has a valid `functionDeclaration` and `executable`.
  */
 export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
+  /**
+   * NATIVE INTEGRATION
+   * Uses Gemini's native Google Search Grounding capability.
+   * This is NOT a Function Call. The Model handles it internally.
+   */
   google_search: {
     id: 'google_search',
     name: 'Google Search',
@@ -266,9 +271,11 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     }
   },
   /**
-   * Real Integration: NSW Trains Realtime.
+   * REAL INTEGRATION: NSW Trains Realtime.
    * Fetches GTFS Realtime Feed from the backend proxy.
-   * Returns a truncated JSON to avoid overwhelming the LLM context context window with 10MB+ JSON files.
+   * 
+   * NOTE: Returns a truncated JSON to avoid overwhelming the LLM context context window with 10MB+ JSON files.
+   * The proxy filters for 'Sydney Trains' and handles Protobuf decoding.
    */
   nsw_trains_realtime: {
     id: 'nsw_trains_realtime',
@@ -335,10 +342,10 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     }
   },
   /**
-   * Real Integration: NSW Trip Planner.
+   * REAL INTEGRATION: NSW Trip Planner.
    * Multi-step execution:
-   * 1. Resolve Origin Stop ID.
-   * 2. Resolve Destination Stop ID.
+   * 1. Resolve Origin Stop ID via Stop Finder API.
+   * 2. Resolve Destination Stop ID via Stop Finder API.
    * 3. Call Trip Planner API with exclusion logic for modes.
    * 4. Summarize and Format journeys into human-readable text for the agent.
    */

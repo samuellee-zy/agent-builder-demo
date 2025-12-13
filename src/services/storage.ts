@@ -17,6 +17,9 @@ const STORAGE_KEY = 'agent_builder_data_v1';
  * Saves the list of agents to IndexedDB.
  * Uses `idb-keyval` for a simple Promise-based API.
  * 
+ * NOTE: IndexedDB supports storing complex objects (Dates, Blobs, Arrays) directly,
+ * unlike LocalStorage which requires JSON serialization.
+ * 
  * @param agents - Array of Agent objects to persist.
  */
 export const saveAgentsToStorage = async (agents: Agent[]): Promise<void> => {
@@ -78,7 +81,11 @@ export const loadAgentsFromStorage = async (): Promise<Agent[]> => {
 
 /**
  * Recursively traverses an object to convert ISO Date strings back into Date objects.
- * Essential for correct timestamp handling after JSON deserialization.
+ * Essential for correct timestamp handling after JSON deserialization,
+ * especially when migrating from LocalStorage or importing JSON files.
+ * 
+ * @param obj - The object to hydrate.
+ * @returns The object with Date strings converted to Date instances.
  */
 const hydrateDates = (obj: any): any => {
   if (obj instanceof Date) return obj;

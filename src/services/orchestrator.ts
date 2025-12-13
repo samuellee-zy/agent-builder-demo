@@ -48,13 +48,22 @@ export class AgentOrchestrator {
 
   /**
    * Main entry point to send a message to the system.
+   * Routes the request to the Root Agent and manages the entire conversation lifecycle.
+   * 
+   * @param history - The conversation history so far.
+   * @param newMessage - The user's new input message.
+   * @returns The final text response from the agent system.
    */
   async sendMessage(history: ChatMessage[], newMessage: string): Promise<string> {
     return this.runAgentLoop(this.rootAgent, history, newMessage);
   }
 
   /**
-   * Checks if any agent in the hierarchy uses a paid model (Veo/Imagen/Gemini 3 Image).
+   * Recursive check to see if any agent in the hierarchy uses a paid/premium model.
+   * Used to warn users or adjust UI indicators for credit usage.
+   * 
+   * @param agent - The root of the tree to check.
+   * @returns {boolean} True if Veo, Imagen, or Gemini 3 Image is found.
    */
   static isPaidModelInUse(agent: Agent): boolean {
     if (agent.model && PAID_MODELS.some(prefix => agent.model.startsWith(prefix))) return true;
@@ -125,8 +134,13 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Handles Video Generation for Veo models.
-   * Uses `generateVideos` instead of `generateContent`.
+   * Specialized handler for Video Generation models (Veo).
+   * Bypasses the standard text-generation loop to use the `generateVideos` API.
+   * 
+   * @param model - The model ID (e.g., 'veo-3.1-fast-generate-001').
+   * @param prompt - The video description.
+   * @param agentName - Source agent name for logging.
+   * @param image - Optional base64 image context for Image-to-Video.
    */
   private async generateVideo(model: string, prompt: string, agentName: string, image?: string | null): Promise<string> {
     try {
@@ -166,8 +180,12 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Handles Image Generation for Imagen models.
-   * Uses `generateImages` instead of `generateContent`.
+   * Specialized handler for Image Generation models (Imagen).
+   * Bypasses the standard text-generation loop to use the `generateImages` API.
+   * 
+   * @param model - The model ID (e.g., 'imagen-4.0-generate-001').
+   * @param prompt - The image description.
+   * @param agentName - Source agent name.
    */
   private async generateImage(model: string, prompt: string, agentName: string): Promise<string> {
     try {
@@ -209,11 +227,12 @@ export class AgentOrchestrator {
   }
 
   /**
-   * The core Recursive Execution Loop.
-   * - Constructs prompts.
-   * - Injects tools.
-   * - Handles Function Calling loop.
-   * - Handles Delegation recursion.
+   * The core Recursive Agent Runtime.
+   * Determines the next action (Answer, Tool Call, or Delegation) based on the LLM's response.
+   * 
+   * @param agent - The current agent executing the loop.
+   * @param history - Conversation history relative to this agent.
+   * @param input - The current input message to process.
    */
   private async runAgentLoop(agent: Agent, history: ChatMessage[], input: string): Promise<string> {
     

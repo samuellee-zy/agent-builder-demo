@@ -4,6 +4,40 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
+### 13/12/2025 - Mobile UI Polish & Navigation Updates
+- **Mobile Experience**:
+  - **Sidebar Navigation**: Replaced hover-only dropdowns with a dedicated **Chevron Toggle** button for the "Agent Operating Procedure" menu. This allows touch users to expand/collapse submenus explicitly without triggering navigation.
+  - **System Status Overlay**: Fixed a z-index conflict where the "System Status" ticker would bleed through the mobile sidebar. Increased sidebar z-index to `z-[100]`.
+  - **Pinch-to-Zoom**: Added native touch event handling (`onTouchStart/Move/End`) to the `PanZoomContainer`, enabling smooth pinch-zoom and pan interactions on mobile diagrams.
+  - **Feedback**: Added a floating "Thinking..." indicator (`activeToolLog`) to the Agent Builder's mobile view to ensure users see tool execution status even when the chat log is full.
+- **Model Updates**:
+  - **System Ticker**: Updated the "Live Pulse" ticker to display the active model lineup: **Gemini 2.5 Flash**, **Gemini 3.0 Pro**, **Veo 3.1**, and **Imagen 4**.
+- **Agent Registry**:
+  - **Responsive Grid**: Refined grid breakpoints (`grid-cols-1` on mobile) to ensure agent cards use full width for better readability on small screens.
+
+
+### 13/12/2025 - Registry UX & Animation Polish
+- **Agent Registry Enhancements**:
+  - **Search Bar**: Added real-time search by name, description, and tags.
+  - **Tag Filter**: Implemented a responsive dropdown to filter agents by specific tags.
+  - **Tag Visibility**: Agent cards now display their top 3 tags with a "+N" indicator for overflow.
+- **Visual Builder Animation**:
+  - **Centering Fix**: Modified `PanZoomContainer` to ensure the diagram appears **instantly centered** on load, eliminating the "flying from top-left" transition effect.
+- **Tools Library Polish**:
+  - **Cleanup**: Removed redundant tag indicators in the inspector header and the "Manual Override" label.
+  - **Grid Sync**: Ensured custom tags added via the inspector are correctly reflected in the main grid view.
+
+### 13/12/2025 - Command Center Overview Dashboard
+- **New Feature**: Implemented the **Overview Dashboard**, serving as the new "Command Center" landing page for the application.
+- **Key Components**:
+  - **System Pulse**: Live status ticker for AI services (Gemini, Veo) and Realtime Data feeds.
+  - **Global Metrics**: High-level stats for Active Agents, Total Sessions, and System Health (IQ Score).
+  - **Media Wall**: A unified visual gallery showcasing all AI-generated images and videos (Veo/Imagen) from agent sessions.
+  - **Activity Feed**: Real-time timeline of administrative actions and agent runs.
+- **Integration**:
+  - Updated `App.tsx` to route the default view to the Overview Dashboard.
+  - Added "Home" navigation to the Sidebar.
+
 ### 13/12/2025 - Registry to Builder Edit Flow
 - **Seamless Navigation**: Added "Edit in Builder" button to the Agent Registry Architecture view.
 - **State Integration**: Wired Registry directly to the Visual Builder, allowing users to select an existing agent and immediately start refining its design.

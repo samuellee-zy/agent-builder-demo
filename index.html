@@ -52,20 +52,22 @@
       .text-\[10px\] { font-size: 0.625rem !important; }
       .text-\[9px\] { font-size: 0.5625rem !important; }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1e293b;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
+      /* Custom Scrollbar - Desktop Only */
+      @media (min-width: 640px) {
+        ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+          background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #475569;
+          border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
+        }
       }
     </style>
 <script type="importmap">

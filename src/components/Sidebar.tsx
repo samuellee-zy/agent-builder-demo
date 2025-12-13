@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Agent } from '../types';
-import { Bot, Clock, Plus, Wrench, Database } from 'lucide-react';
+import { Bot, Clock, Plus, Wrench, Database, ChevronDown } from 'lucide-react';
 
 interface SidebarProps {
   recentAgents: Agent[];
@@ -39,6 +39,8 @@ export const Sidebar: React.FC<SidebarProps & { isOpen: boolean; onClose: () => 
   isOpen,
   onClose
 }) => {
+  const [isAopMenuOpen, setIsAopMenuOpen] = React.useState(false);
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -51,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps & { isOpen: boolean; onClose: () => 
 
       {/* Sidebar Container */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full flex-shrink-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
+        fixed inset-y-0 left-0 z-[100] w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full flex-shrink-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 lg:z-auto
       `}>
@@ -77,58 +79,67 @@ export const Sidebar: React.FC<SidebarProps & { isOpen: boolean; onClose: () => 
           >
             Watchtower
           </button>
-          <button
-            onClick={() => { onTabChange('aop'); onClose(); }}
-            className={`w-full text-left px-3 py-3 rounded-md text-sm font-medium transition-colors ${activeTab === 'aop' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-          >
-            Agent Operating Procedure
-          </button>
-          <button
-            onClick={() => { onTabChange('registry'); onClose(); }}
-            className={`w-full text-left px-3 py-3 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'registry' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-          >
-            <Database size={14} />
-            Agent Registry
-          </button>
-          <button
-            onClick={() => { onTabChange('tools'); onClose(); }}
-            className={`w-full text-left px-3 py-3 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tools' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-          >
-            <Wrench size={14} />
-            Tools Library
-          </button>
+          {/* Navigation Group with Explicit Toggle */}
+          <div className="relative">
+            <div className={`flex items-center w-full rounded-md transition-colors ${activeTab === 'aop' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}>
+              {/* Main Action: Navigate & Reset */}
+              <button
+                onClick={() => { onTabChange('aop'); onNewAgent(); onClose(); }}
+                className="flex-1 text-left px-3 py-3 text-sm font-medium focus:outline-none"
+              >
+                Agent Operating Procedure
+              </button>
+
+              {/* Toggle Action: Open/Close Menu */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsAopMenuOpen(!isAopMenuOpen); }}
+                className="p-3 text-slate-500 hover:text-white focus:outline-none"
+              >
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isAopMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            {/* Dropdown Menu (State Controlled) */}
+            {isAopMenuOpen && (
+              <div className="mt-1 ml-2 border-l border-slate-800 pl-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onTabChange('registry'); onClose(); }}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-2 ${activeTab === 'registry' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+                >
+                  <Database size={12} />
+                  Agent Registry
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onTabChange('tools'); onClose(); }}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-2 ${activeTab === 'tools' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+                >
+                  <Wrench size={12} />
+                  Tools Library
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2">
-          <div className="flex items-center justify-between mb-4 mt-4">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recent Agents</h3>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-2">
+            Recent Agents
           </div>
-
-          <div className="space-y-3">
+          <div className="space-y-1">
             {recentAgents.length === 0 && (
-              <p className="text-xs text-slate-600 text-center py-4 italic">No agents yet.</p>
+              <div className="text-xs text-slate-600 italic px-2">No agents yet.</div>
             )}
-            {recentAgents.map((agent) => (
-              <div
-                key={agent.id} 
+            {recentAgents.map(agent => (
+              <button
+                key={agent.id}
                 onClick={() => { onSelectAgent(agent); onClose(); }}
-                className="group flex items-start gap-3 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all border border-transparent hover:border-slate-700"
+                className="w-full text-left px-3 py-2 rounded-md transition-colors flex items-center gap-2 group hover:bg-slate-800"
               >
-                <div className="mt-1 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-brand-400 group-hover:bg-brand-900/20 group-hover:text-brand-300">
-                  <Bot size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-slate-200 truncate">{agent.name}</h4>
-                  <p className="text-xs text-slate-500 truncate">{agent.description}</p>
-                  <div className="flex items-center gap-1 mt-1.5 text-[10px] text-slate-600">
-                    <Clock size={10} />
-                    <span>{formatDate(agent.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
+                <div className="w-2 h-2 rounded-full bg-brand-500 group-hover:shadow-[0_0_8px_rgba(99,102,241,0.5)] transition-all" />
+                <span className="text-sm text-slate-400 group-hover:text-white truncate">
+                  {agent.name}
+                </span>
+              </button>
             ))}
           </div>
         </div>

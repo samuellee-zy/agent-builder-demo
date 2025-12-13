@@ -22,6 +22,7 @@ import { AgentOrchestrator } from '../services/orchestrator';
 import { GoogleGenAI } from "@google/genai";
 import { AgentDiagram } from './AgentDiagram';
 import { VideoMessage } from './VideoMessage';
+import { PanZoomContainer } from './PanZoomContainer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LocationFinder } from './LocationFinder';
@@ -56,19 +57,22 @@ import {
     MapPin,
     Train,
     Settings,
-    X
+    X,
+    Tag
 } from 'lucide-react';
 
 interface AgentBuilderProps {
   onAgentCreated: (agent: Agent) => void;
   initialAgent?: Agent; // Support reloading an existing agent
     draftId?: string;
+    isEmbedded?: boolean;
+    onSelectAgent?: (agent: Agent) => void;
 }
 
 
 
-export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent, draftId }) => {
-  const [step, setStep] = useState<BuildStep>('input');
+export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent, draftId, isEmbedded = false, onSelectAgent }) => {
+    const [step, setStep] = useState<BuildStep>(initialAgent ? 'review' : 'input');
   
   // Step 1: Chat/Input State
   const [hasStarted, setHasStarted] = useState(false);
@@ -192,6 +196,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     /**
      * Sends user input to the Architect Persona.
      * Updates local chat state and triggers the mock agent service.
+     * 
+     * FLOW:
+     * 1. Updates UI with user message immediately.
+     * 2. Calls `sendArchitectMessage` (Gemini 2.5/3.0).
+     * 3. Appends response to history.
      */
   const handleArchitectSend = async () => {
     if (!architectInput.trim()) return;
@@ -226,6 +235,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     /**
      * Triggers the "Build" phase.
      * Uses the full chat history to generate the initial Agent Configuration JSON.
+     * 
+     * TRANSITION:
+     * - Moves state from 'input' -> 'building' -> 'review'.
+     * - Hydrates the generated JSON with ID and Defaults.
      */
   const handleBuildFromChat = async () => {
     setStep('building');
@@ -480,9 +493,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
     /**
      * Initializes a new Testing Session.
-     * - Creates a new Session ID.
+     * - Creates a new Session ID (Sequential).
      * - Injects the initial "System Online" message.
-     * - Updates the Agent's session history.
+     * - Updates the Agent's session history in storage.
+     * - Checks for Paid Model usage (Veo/Imagen) to warn users if needed.
      */
   const handleStartTest = async () => {
     if (!rootAgent) return;
@@ -539,6 +553,12 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     /**
      * Sends a user message to the active Test Session.
      * Uses `AgentOrchestrator` to execute the agent logic (tools, delegation, etc.).
+     * 
+     * LOGIC:
+     * 1. Instantiates `AgentOrchestrator` with current Root Agent.
+     * 2. Registers callbacks for Tool Execution logging (for UI "Thinking" state).
+     * 3. Calls `orchestrator.sendMessage`.
+     * 4. Handles errors and updates the chat transcript.
      * 
      * @param inputOverride - Optional message text (used for retries or programmatic sends).
      */
@@ -842,18 +862,30 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                     </div>
                 </div>
             ))}
-             {isArchitectTyping && (
-                <div className="flex justify-start">
-                    <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-md">
-                         <div className="flex gap-1.5">
-                            <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                            <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                            <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                        </div>
-                    </div>
-                </div>
-            )}
-            <div ref={chatEndRef} />
+              {/* Active Tool Log Indicator */}
+              {activeToolLog && (
+                  <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
+                      <div className="bg-slate-800/80 border border-brand-500/30 rounded-2xl rounded-tl-none px-4 py-3 shadow-lg flex items-center gap-3 backdrop-blur-sm">
+                          <span className="w-2 h-2 bg-brand-400 rounded-full animate-pulse"></span>
+                          <span className="text-sm text-brand-200 font-mono">{activeToolLog}</span>
+                      </div>
+                  </div>
+              )}
+
+              {/* Typing Indicator */}
+              {isTyping && !activeToolLog && (
+                  <div className="flex justify-start animate-in fade-in">
+                      <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-md">
+                          <div className="flex gap-1.5">
+                              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
+                              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              <div ref={chatEndRef} />
         </div>
 
         <div className="p-4 border-t border-slate-800 bg-slate-900 flex flex-col gap-3">
@@ -908,32 +940,34 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       <div className="flex h-full overflow-hidden bg-slate-900 relative">
         {/* Left: Diagram Canvas */}
         <div className="flex-1 flex flex-col relative bg-slate-950 overflow-hidden">
-             <div className="absolute top-4 left-4 z-20 flex gap-2">
-                <button 
-                    onClick={() => setStep('input')}
-                      className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white flex items-center gap-2"
-                >
-                      <ChevronLeft size={14} />
-                      <span className="hidden sm:inline">Back to Chat</span>
-                </button>
-                  <button
-                      onClick={handleConsultArchitect}
-                      className="px-3 py-1.5 bg-brand-900/30 text-brand-300 text-xs rounded border border-brand-500/30 hover:bg-brand-900/50 hover:text-brand-200 flex items-center gap-1.5 transition-colors"
-                  >
-                      <MessageSquarePlus size={14} />
-                      <span className="hidden sm:inline">Consult Architect</span>
-                      <span className="sm:hidden">Consult</span>
-                  </button>
-                {history.length > 0 && (
-                    <button 
-                        onClick={handleUndo}
-                        className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white hover:bg-slate-700 flex items-center gap-1.5 transition-colors"
-                    >
-                          <Undo2 size={14} />
-                          <span className="hidden sm:inline">Revert Changes</span>
-                    </button>
-                )}
-             </div>
+              {!isEmbedded && (
+                  <div className="absolute top-4 left-4 z-20 flex gap-2">
+                      <button
+                          onClick={() => setStep('input')}
+                          className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white flex items-center gap-2"
+                      >
+                          <ChevronLeft size={14} />
+                          <span className="hidden sm:inline">Back to Chat</span>
+                      </button>
+                      <button
+                          onClick={handleConsultArchitect}
+                          className="px-3 py-1.5 bg-brand-900/30 text-brand-300 text-xs rounded border border-brand-500/30 hover:bg-brand-900/50 hover:text-brand-200 flex items-center gap-1.5 transition-colors"
+                      >
+                          <MessageSquarePlus size={14} />
+                          <span className="hidden sm:inline">Consult Architect</span>
+                          <span className="sm:hidden">Consult</span>
+                      </button>
+                      {history.length > 0 && (
+                          <button
+                              onClick={handleUndo}
+                              className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700 hover:text-white hover:bg-slate-700 flex items-center gap-1.5 transition-colors"
+                          >
+                              <Undo2 size={14} />
+                              <span className="hidden sm:inline">Revert Changes</span>
+                          </button>
+                      )}
+                  </div>
+              )}
 
               {/* Mobile: Edit Config Button */}
               <div className="absolute top-4 right-4 z-20 lg:hidden">
@@ -946,9 +980,9 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                   </button>
               </div>
 
-              <div className="flex-1 overflow-auto p-10 flex items-center justify-center min-w-full min-h-full touch-pan-x touch-pan-y">
+              <div className="flex-1 overflow-hidden relative bg-slate-950">
                 {rootAgent && (
-                    <div className="transform scale-100 origin-center min-w-max pb-20">
+                      <PanZoomContainer className="w-full h-full bg-slate-950">
                        <AgentDiagram 
                           agent={rootAgent} 
                           selectedId={selectedAgentId || ''} 
@@ -960,7 +994,7 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                           onDelete={handleDeleteNode}
                           depth={0} 
                        />
-                    </div>
+                      </PanZoomContainer>
                 )}
              </div>
 
@@ -1034,8 +1068,47 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                             />
                          </div>
 
-                         {selectedAgent.type === 'agent' && (
-                             <div className="space-y-2">
+                          <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tags</label>
+                              <div className="space-y-2">
+                                  <div className="flex flex-wrap gap-2 mb-2">
+                                      {(selectedAgent.tags || []).map((tag: string) => (
+                                          <span key={tag} className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-600 flex items-center gap-1">
+                                              {tag}
+                                              <button
+                                                  onClick={() => handleUpdateSelectedAgent({ tags: selectedAgent.tags?.filter(t => t !== tag) })}
+                                                  className="hover:text-white"
+                                              >
+                                                  <X size={10} />
+                                              </button>
+                                          </span>
+                                      ))}
+                                  </div>
+                                  <div className="relative">
+                                      <Tag size={12} className="absolute left-2.5 top-2.5 text-slate-500" />
+                                      <input
+                                          type="text"
+                                          placeholder="Add tag (Press Enter)..."
+                                          className="w-full bg-slate-800 border border-slate-700 rounded-md pl-8 pr-3 py-2 text-sm text-white focus:ring-1 focus:ring-brand-500 outline-none"
+                                          onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                  const val = e.currentTarget.value.trim();
+                                                  if (val) {
+                                                      const currentTags = selectedAgent.tags || [];
+                                                      if (!currentTags.includes(val)) {
+                                                          handleUpdateSelectedAgent({ tags: [...currentTags, val] });
+                                                      }
+                                                      e.currentTarget.value = '';
+                                                  }
+                                              }
+                                          }}
+                                      />
+                                  </div>
+                              </div>
+                          </div>
+
+                          {selectedAgent.type === 'agent' && (
+                              <div>
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tools</label>
                                 <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 max-h-80 overflow-y-auto custom-scrollbar">
                                     {/* Categorized Tools List */}
@@ -1060,7 +1133,6 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
                                                         {isExpanded ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
                                                     </div>
                                                 </button>
-
                                                 {isExpanded && (
                                                     <div className="p-2 space-y-1 border-t border-slate-700/50 bg-slate-900/30">
                                                         {categoryTools.map(tool => {

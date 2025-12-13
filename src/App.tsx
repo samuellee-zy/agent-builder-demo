@@ -17,135 +17,145 @@ import { AgentBuilder } from './components/AgentBuilder';
 import { ToolsLibrary } from './components/ToolsLibrary';
 import { AgentRegistry } from './components/AgentRegistry';
 import { Watchtower } from './components/Watchtower';
+import { Overview } from './components/Overview';
 import { Agent, SAMPLE_AGENTS } from './types';
 import { saveAgentsToStorage, loadAgentsFromStorage } from './services/storage';
 import { LayoutDashboard } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('aop');
-  
-  // Initialize agents from storage, falling back to sample if empty
+  const [activeTab, setActiveTab] = useState('overview'); // Default to overview
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const [selectedAgent, setSelectedAgent] = useState<Agent | undefined>(undefined);
-
-  // Load agents on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const saved = await loadAgentsFromStorage();
-        setAgents(saved.length > 0 ? saved : SAMPLE_AGENTS);
-      } catch (e) {
-        console.error("Failed to load agents:", e);
-        setAgents(SAMPLE_AGENTS);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // Persistence Effect: Save whenever agents change
-  useEffect(() => {
-    if (!isLoading && agents.length > 0) {
-      saveAgentsToStorage(agents);
-    }
-  }, [agents, isLoading]);
-
-  const handleAgentCreated = (newAgent: Agent) => {
-    setAgents(prev => {
-        // Update if exists, else add
-        const exists = prev.findIndex(a => a.id === newAgent.id);
-        if (exists >= 0) {
-            const copy = [...prev];
-            copy[exists] = newAgent;
-            return copy;
-        }
-        return [newAgent, ...prev];
-    });
-  };
-
-  const handleDeleteAgent = (agentId: string) => {
-      setAgents(prev => prev.filter(a => a.id !== agentId));
-      if (selectedAgent?.id === agentId) {
-          setSelectedAgent(undefined);
-      }
-  };
-
-  const [draftId, setDraftId] = useState(() => crypto.randomUUID());
-
-  const resetToNew = () => {
-    setDraftId(crypto.randomUUID());
-    setSelectedAgent(undefined);
-    setActiveTab('aop');
-  };
-
-  const handleSelectAgent = (agent: Agent) => {
-      setSelectedAgent(agent);
-      setActiveTab('aop');
-  };
-
-  const Overview = () => (
-    <div className="flex flex-col items-center justify-center h-full text-slate-500">
-      <LayoutDashboard size={64} className="mb-4 opacity-20" />
-      <h2 className="text-2xl font-bold text-slate-300">Overview Dashboard</h2>
-      <p>System metrics and global agent performance analytics.</p>
-    </div>
-  );
-
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Load persistence
+  useEffect(() => {
+    const init = async () => {
+      // 1. Load Custom Agents
+      const stored = await loadAgentsFromStorage();
+
+      // 2. Merge with Sample Agents (if no stored agents, or just ensure samples exist in registry for demo)
+      // For this demo, let's combine them uniquely by ID
+      const allAgents = [...stored];
+
+      // Add samples if they aren't there
+      SAMPLE_AGENTS.forEach(sample => {
+        if (!allAgents.find(a => a.id === sample.id)) {
+          allAgents.push(sample);
+        }
+      });
+
+      setAgents(allAgents);
+    };
+    init();
+  }, []);
+
+  const handleCreateAgent = (newAgent: Agent) => {
+    setAgents(prev => {
+      const exists = prev.find(a => a.id === newAgent.id);
+      const updated = exists
+        ? prev.map(a => a.id === newAgent.id ? newAgent : a)
+        : [...prev, newAgent];
+      saveAgentsToStorage(updated);
+      return updated;
+    });
+    // Optional: Don't auto-switch to registry on every auto-save, only if explicit "Done"?
+    // AgentBuilder auto-saves frequently.
+  };
+
+  const handleDeleteAgent = (id: string) => {
+    const updated = agents.filter(a => a.id !== id);
+    setAgents(updated);
+    saveAgentsToStorage(updated);
+  };
+
+  const handleUpdateAgent = (updatedAgent: Agent) => {
+    const updated = agents.map(a => a.id === updatedAgent.id ? updatedAgent : a);
+    setAgents(updated);
+    saveAgentsToStorage(updated);
+  };
+
   return (
-    <div className="flex h-screen w-full bg-slate-950 text-slate-200 overflow-hidden font-sans selection:bg-brand-500/30">
+    <div className="flex h-screen supports-[height:100dvh]:h-[100dvh] bg-slate-950 text-slate-200 overflow-hidden font-sans selection:bg-brand-500/30">
+
       <Sidebar 
-        recentAgents={agents} 
-        onNewAgent={resetToNew} 
-        onSelectAgent={handleSelectAgent}
+        recentAgents={agents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)}
+        onNewAgent={() => {
+          setSelectedAgentId(null);
+          setActiveTab('aop'); // Use AOP for Builder
+        }}
+        onSelectAgent={(agent) => {
+          setSelectedAgentId(agent.id);
+          setActiveTab('aop');
+        }}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col h-full bg-slate-900 relative shadow-2xl overflow-hidden">
-        {/* Mobile Header */}
-        <div className="lg:hidden h-14 border-b border-slate-800 flex items-center px-4 bg-slate-900 shrink-0 z-30">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 -ml-2 text-slate-400 hover:text-white"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
-          </button>
-          <span className="ml-2 font-bold text-white">Agent Builder</span>
+      {/* Mobile Header Toggle */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 bg-slate-800 rounded-lg border border-slate-700 text-white shadow-lg"
+        >
+          <LayoutDashboard size={20} />
+        </button>
         </div>
 
-        {activeTab === 'overview' && <Overview />}
-        
-        {activeTab === 'watchtower' && (
-            <Watchtower 
-                agents={agents} 
-                onUpdateAgent={handleAgentCreated}
-            />
+      <main className="flex-1 relative w-full h-full overflow-hidden flex flex-col">
+        {activeTab === 'overview' && (
+          <Overview
+            agents={agents} 
+            onNavigate={setActiveTab}
+            onNewAgent={() => {
+              setSelectedAgentId(null);
+              setActiveTab('aop');
+            }}
+          />
         )}
-        
-        {activeTab === 'tools' && <ToolsLibrary />}
-        
+
+        {/* Deprecated 'builder' tab in favor of 'aop' for consistency, but keeping if refs exist */}
+        {activeTab === 'builder' && (
+          <AgentBuilder
+            onAgentCreated={handleCreateAgent}
+          />
+        )}
+
         {activeTab === 'registry' && (
-            <AgentRegistry 
-                agents={agents} 
-                onDeleteAgent={handleDeleteAgent} 
-                onUpdateAgent={handleAgentCreated}
-            onEditAgent={handleSelectAgent}
-            />
+          <AgentRegistry
+            agents={agents}
+            onDeleteAgent={handleDeleteAgent}
+            onUpdateAgent={handleUpdateAgent}
+            onEditAgent={(agent) => {
+              setSelectedAgentId(agent.id);
+              setActiveTab('aop');
+            }}
+            onSelectAgent={(agent) => {
+              setSelectedAgentId(agent.id);
+              // We might want to switch to 'aop' or just stay in registry? 
+              // Usually 'Select' implies focus. Let's switch to 'aop' for now as that's the main "View" mode for this app structure.
+              setActiveTab('aop');
+            }}
+          />
         )}
-        
+
+        {activeTab === 'watchtower' && (
+          <Watchtower
+            agents={agents}
+            onUpdateAgent={handleUpdateAgent}
+          />
+        )}
+
+        {activeTab === 'tools' && <ToolsLibrary />}
+
         {activeTab === 'aop' && (
-          <AgentBuilder 
-            key={selectedAgent ? selectedAgent.id : draftId}
-            draftId={draftId}
-            onAgentCreated={handleAgentCreated} 
-            initialAgent={selectedAgent}
+          <AgentBuilder
+            key={selectedAgentId || 'new'}
+            initialAgent={agents.find(a => a.id === selectedAgentId)}
+            onAgentCreated={handleCreateAgent}
+            draftId={selectedAgentId || undefined}
           />
         )}
       </main>

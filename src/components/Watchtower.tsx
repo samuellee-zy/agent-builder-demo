@@ -55,6 +55,9 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
     /**
      * Triggers the Watchtower Analysis Service.
      * Sends the agent's session history to Gemini for offline evaluation.
+     * 
+     * Note: Analysis is performed on the *last 20 sessions* to respect token limits.
+     * It uses the "Reasoning" model (Gemini 3 Pro) for high-quality insights.
      */
   const handleRunAnalysis = async () => {
     if (!selectedAgent) return;
@@ -192,7 +195,7 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
                             <Search size={18} className="text-blue-400" />
                             Detected Intents
                         </h2>
-                          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                             {analysis.intents.map(intent => (
                                 <div key={intent.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 hover:bg-slate-800 transition-colors">
                                     <div className="flex justify-between items-start mb-2">

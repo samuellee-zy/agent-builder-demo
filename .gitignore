@@ -25,5 +25,3 @@ dist-ssr
 
 # Environment Variables
 .env
-.agent/*
-.agent

@@ -82,6 +82,15 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 6, initi
 /**
  * Sends a message to the Architect persona.
  * The Architect converses with the user to refine requirements.
+ * 
+ * DESIGN STRATEGY:
+ * - Uses a "System Instruction" to enforce the Architect persona.
+ * - Guides the model to ask clarifying questions before designing.
+ * - Explicitly lists available tools and models to ground the suggestions.
+ * 
+ * @param history - The chat history.
+ * @param newMessage - The user's latest input.
+ * @param model - The model to use (default: gemini-2.5-flash).
  */
 export const sendArchitectMessage = async (
   history: ChatMessage[], 
@@ -140,6 +149,18 @@ ${AVAILABLE_TOOLS_LIST.map(t => `- ${t.name} (ID: ${t.id}): ${t.description}`).j
   }
 };
 
+/**
+ * Generates the final Agent Configuration (JSON) from the conversation transcript.
+ * 
+ * ALGORITHM:
+ * 1. Feeds the entire chat transcript to Gemini 3 Pro (Reasoning).
+ * 2. Uses a strict JSON-enforcing prompt with architectural constraints (Coordinator Pattern).
+ * 3. Falls back to Gemini 2.5 Flash if 3 Pro fails to generate valid JSON.
+ * 4. Hydrates the result with unique IDs and defaults.
+ * 
+ * @param history - The chat history to analyze.
+ * @returns {Promise<Agent>} The fully constructed Root Agent object.
+ */
 export const generateArchitectureFromChat = async (
   history: ChatMessage[]
 ): Promise<Agent> => {
