@@ -80,8 +80,9 @@ const MODEL_CONFIG = {
   'gemini-1.5-pro-002': { location: 'global' },
 
   // Custom Aliases
-  'gemini-2.5-flash': { location: 'global', modelId: 'gemini-2.5-flash' }, // Latest Flash
-  'gemini-3-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' }, // Reasoning Model
+  'gemini-2.5-flash': { location: 'global', modelId: 'gemini-2.5-flash' },
+  'gemini-3-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' },
+  'gemini-3.0-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' },
   'gemini-3-pro': { location: 'global', modelId: 'gemini-3-pro-preview' }, 
 
   // Regional Models (Media Generation requires specific regions like us-central1)
@@ -354,10 +355,50 @@ async function generateVideo(model, prompt, location, image = null) {
  * Dispatches to Gemini, Veo, or Imagen based on model ID.
  * @route POST /api/generate
  */
-app.post('/api/generate', async (req, res) => {
-  const { model, prompt, location = 'us-central1', image } = req.body;
 
-  log(`[API Request] ${model} (Length: ${prompt?.length || 0}) ${image ? `[Has Image: ${image.substring(0, 30)}...]` : '[No Image]'}`);
+/**
+ * Executes a REST API call to Vertex AI Generative API (:generateContent).
+ * Used for Gemini models to bypass potential Node.js SDK gRPC/timeouts issues.
+ * 
+ * @param {string} location - Region (e.g. 'us-central1' or 'global').
+ * @param {string} modelId - Model ID.
+ * @param {Object} payload - JSON body in snake_case.
+ * @returns {Promise<Object>} JSON response.
+ */
+async function callVertexGenerativeApi(location, modelId, payload) {
+  const token = await getAccessToken();
+  const host = location === 'global' ? 'aiplatform.googleapis.com' : `${location}-aiplatform.googleapis.com`;
+  const endpoint = `https://${host}/v1/projects/${PROJECT_ID}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+
+  log(`[Vertex REST] POST ${endpoint}`);
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Vertex API Error (${response.status}): ${text}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Main Generation Endpoint.
+ * Dispatches to Gemini, Veo, or Imagen based on model ID.
+ * Uses Direct REST API for all calls to ensure reliability.
+ * @route POST /api/generate
+ */
+app.post('/api/generate', async (req, res) => {
+  const { model, prompt, location = 'us-central1', image, contents, systemInstruction, tools, generationConfig } = req.body;
+
+  log(`[API Request] ${model} (Length: ${prompt?.length || 0}) ${image ? `[Has Image]` : ''}`);
 
   try {
     const config = resolveModel(model);
@@ -368,55 +409,54 @@ app.post('/api/generate', async (req, res) => {
     if (model.startsWith('imagen')) {
       const result = await generateImage(modelId, prompt, modelLocation);
       return res.json(result);
-      try {
-        // 1. Extract Model ID and Request Body
-        const { model, contents, systemInstruction, tools, toolConfig, generationConfig } = req.body;
-        const projectId = process.env.PROJECT_ID;
-
-        // 2. Validate Project Configuration
-        if (!projectId) {
-          console.error("❌ Stats: Missing PROJECT_ID");
-          return res.status(500).json({ error: "Server Configuration Error: PROJECT_ID is missing." });
     }
 
-        // 3. Initialize Vertex AI Client
-        // Uses Application Default Credentials (ADC) automatically.
-        // On Cloud Run: Uses the Service Account.
-        // On Local: Uses `gcloud auth application-default login`.
-        const vertexAI = new VertexAI({ project: projectId, location: 'us-central1' });
+    // For Gemini (Text/Multimodal)
+    // Construct REST Payload (Snake Case)
+    const payload = {
+      contents: contents || [],
+    };
 
-        // 4. Instantiate the Generative Model
-        const generativeModel = vertexAI.getGenerativeModel({
-          model: model || 'gemini-1.5-flash',
-          // Pass through critical configuration
-          systemInstruction,
-          tools,
-          toolConfig,
-          generationConfig
-        });
-
-        console.log(`[Proxy] Generating with model: ${model}`);
-
-        // 5. Call Google AI
-        const result = await generativeModel.generateContent({
-          contents,
-        });
-        const response = await result.response;
-
-        // 6. Return the raw response object to the client
-        res.json(response);
-
-      } catch (error) {
-        console.error("❌ Proxy Error:", error);
-        // Return a structured error so the frontend can handle it (e.g. Rate Limit retries)
-        res.status(500).json({
-          error: error.message,
-          details: error
-        });
-      }
+    // If 'prompt' is provided but no 'contents' (legacy/simple mode), wrap it
+    if (prompt && (!contents || contents.length === 0)) {
+      payload.contents.push({ role: 'user', parts: [{ text: prompt }] });
     }
+
+    // Map System Instruction (String -> Object)
+    if (systemInstruction) {
+      payload.system_instruction = {
+        parts: [{ text: systemInstruction }]
+      };
+    }
+
+    // Map Tools (camelCase -> snake_case)
+    if (tools && tools.length > 0) {
+      payload.tools = tools.map(tool => ({
+        function_declarations: tool.functionDeclarations || tool.function_declarations
+      }));
+    }
+
+    // Map Generation Config (camelCase -> snake_case)
+    if (generationConfig) {
+      payload.generation_config = {};
+      if (generationConfig.responseMimeType) payload.generation_config.response_mime_type = generationConfig.responseMimeType;
+      if (generationConfig.temperature) payload.generation_config.temperature = generationConfig.temperature;
+      if (generationConfig.candidateCount) payload.generation_config.candidate_count = generationConfig.candidateCount;
+    }
+
+    console.log(`[Proxy] REST Generating with model: ${modelId} @ ${modelLocation}`);
+    console.log(`[Proxy] Payload Preview:`, JSON.stringify(payload, null, 2).substring(0, 500) + "..."); // Log first 500 chars
+
+    const result = await callVertexGenerativeApi(modelLocation, modelId, payload);
+
+    // Return standard response
+    res.json(result);
+
   } catch (error) {
     logError(`[API Dispatcher] Error: ${error.message}`);
+    // Log the full error stack for debugging
+    console.error(error);
+    // Extract upstream error details if available
     res.status(500).json({ error: error.message });
   }
 });

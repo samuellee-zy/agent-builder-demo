@@ -245,8 +245,13 @@ The application uses a **Multi-Stage Docker Build** to optimize image size and s
 - **Local Development**: Uses `GOOGLE_APPLICATION_CREDENTIALS` environment variable pointing to a service account key file, or `gcloud auth application-default login`.
 
 ## Vertex AI Integration
-- **Global Endpoints**: Used for `gemini-2.0-flash-exp`, `gemini-1.5-pro`, etc.
-- **Regional Endpoints**: Used for `veo-2.0` and `imagen-3.0` (e.g., `us-central1`).
+- **Protocol**: Direct REST API (`fetch`) over standard HTTP/1.1.
+  - *Decision*: Bypassed `@google-cloud/vertexai` Node.js SDK for `gemini-2.5` and `gemini-3.0` to resolve gRPC/HTTP2 upstream timeouts on Cloud Run and local environments.
+  - *Auth*: Uses Application Default Credentials (ADC) to acquire OAuth2 tokens.
+- **Endpoints**:
+  - `global` (aiplatform.googleapis.com) for Gemini 2.5 Flash / 3.0 Pro.
+  - `us-central1` for Veo and Imagen.
+- **Payload**: Mapped from internal `GenerativeContentOptions` to strict Vertex AI REST JSON (snake_case).
 - **Routing**: `server/index.js` handles routing based on the requested model.
 
 ---

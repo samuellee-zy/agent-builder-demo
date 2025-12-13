@@ -107,6 +107,14 @@ All notable changes to the Agent Builder project will be documented in this file
 #### Mobile Optimization & Polish
 - **Agent Registry Mobile Experience**:
   - **Responsive Layout**: Implemented a master-detail stack layout for mobile. The sidebar (tabs) and content areas now stack vertically or toggle appropriately, ensuring full accessibility on small screens.
+#### Fixed
+- **Vertex AI Hotfix**: Resolved critical `504 Gateway Timeout` (Cloud Run) and hanging requests (Local) by migrating `gemini-2.5-flash` and `gemini-3-pro-preview` from the Node.js SDK (gRPC) to **Direct REST API**.
+- **Agent Deletion**: Fixed bug where the "Delete Agent" button was unresponsive due to missing event handlers.
+- **Navigation**: Fixed "Back to Chat" and "Sidebar Agent Selection" not correctly resetting the Builder view state.
+
+#### Changed
+- **Documentation**: Added `TROUBLESHOOTING.md` with details on the Vertex AI connectivity fix.
+- **Tools Library**: Removed redundant "Manual Override" tags and cleaned up header UI.
   - **Navigation Fix**: Resolved a "blank screen" bug when navigating back from an agent detail view by correctly resetting the selection state.
   - **Visual Polish**: Fixed the "Delete" button layout on agent cards to prevent text overlap. Enabled proper vertical scrolling for the agent list.
 - **Agent Builder Mobile Enhancements**:
