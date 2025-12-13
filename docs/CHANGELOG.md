@@ -4,7 +4,9 @@ All notable changes to the Agent Builder project will be documented in this file
 
 ## History
 
-### 13/12/2025 - Mobile UI Polish & Navigation Updates
+### 13/12/2025
+
+#### Mobile UI Polish & Navigation Updates
 - **Mobile Experience**:
   - **Sidebar Navigation**: Replaced hover-only dropdowns with a dedicated **Chevron Toggle** button for the "Agent Operating Procedure" menu. This allows touch users to expand/collapse submenus explicitly without triggering navigation.
   - **System Status Overlay**: Fixed a z-index conflict where the "System Status" ticker would bleed through the mobile sidebar. Increased sidebar z-index to `z-[100]`.
@@ -20,26 +22,35 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Agent Registry**:
   - **Responsive Grid**: Refined grid breakpoints (`grid-cols-1` on mobile) to ensure agent cards use full width for better readability on small screens.
 
-- **Reliability & Fixes**:
-  - **Agent Deletion**: Fixed a critical bug where agents could not be deleted from the registry.
-    - Implemented a custom **Delete Confirmation Modal** in `AgentRegistry.tsx`.
-    - Wired `onDeleteAgent` to `App.tsx` state management to ensure permanent removal from local storage.
-    - Resolved a syntax error that was preventing the deletion logic from executing.
-  - **Linting**: Fixed various TypeScript lint errors in `AgentRegistry` and `App` components.
-
-
-### 13/12/2025 - Registry UX & Animation Polish
+#### Registry UX & Animation Polish
 - **Agent Registry Enhancements**:
   - **Search Bar**: Added real-time search by name, description, and tags.
   - **Tag Filter**: Implemented a responsive dropdown to filter agents by specific tags.
   - **Tag Visibility**: Agent cards now display their top 3 tags with a "+N" indicator for overflow.
+#### UI Polish
+- **Agent Registry Grid Optimization**: Adjusted grid breakpoints to improve readability on smaller laptops (13-inch / 1280px).
+    - Changed 4-column layout trigger from `xl` (1280px) to `2xl` (1536px).
+    - Screens between 1024px and 1535px now display **3 columns**, preventing card compression.
+
 - **Visual Builder Animation**:
   - **Centering Fix**: Modified `PanZoomContainer` to ensure the diagram appears **instantly centered** on load, eliminating the "flying from top-left" transition effect.
 - **Tools Library Polish**:
   - **Cleanup**: Removed redundant tag indicators in the inspector header and the "Manual Override" label.
   - **Grid Sync**: Ensured custom tags added via the inspector are correctly reflected in the main grid view.
+- **Reliability & Fixes**:
+  - **Deploy & Test System Button**: Fixed a critical issue where deployment would reset the builder view instead of switching to the chat interface. This affected direct builds, Agent Registry, and Sidebar entry points.
+  - **Agent Deletion**: Fixed a critical bug where agents could not be deleted from the registry.
+    - Implemented a custom **Delete Confirmation Modal** in `AgentRegistry.tsx`.
+    - Wired `onDeleteAgent` to `App.tsx` state management to ensure permanent removal from local storage.
+    - Resolved a syntax error that was preventing the deletion logic from executing.
+  - **Tools Library CSS**: Fixed an overflow issue in the "Native Integration" code block.
+  - **Visual Builder UI**: Fixed the "Deploy & Test System" button overlap on mobile devices by adjusting the controls container position.
+  - **Sidebar Navigation**: Fixed a bug where clicking a sidebar agent while in "Testing" mode would fail to switch views.
+    - Adjusted `prevAgentIdRef` initialization to ensure state reset triggers correctly on component mount.
+    - Implemented `builderResetKey` in `App.tsx` to force a view reset when re-selecting the *currently active* agent, allowing users to easily exit "Testing" mode.
+  - **Linting**: Fixed various TypeScript lint errors in `AgentRegistry` and `App` components.
 
-### 13/12/2025 - Command Center Overview Dashboard
+#### Command Center Overview Dashboard
 - **New Feature**: Implemented the **Overview Dashboard**, serving as the new "Command Center" landing page for the application.
 - **Key Components**:
   - **System Pulse**: Live status ticker for AI services (Gemini, Veo) and Realtime Data feeds.
@@ -50,12 +61,12 @@ All notable changes to the Agent Builder project will be documented in this file
   - Updated `App.tsx` to route the default view to the Overview Dashboard.
   - Added "Home" navigation to the Sidebar.
 
-### 13/12/2025 - Registry to Builder Edit Flow
+#### Registry to Builder Edit Flow
 - **Seamless Navigation**: Added "Edit in Builder" button to the Agent Registry Architecture view.
 - **State Integration**: Wired Registry directly to the Visual Builder, allowing users to select an existing agent and immediately start refining its design.
 - **Mobile Optimized**: The edit button is responsive, showing only an icon on mobile devices to save space (`z-40` layering ensures visibility).
 
-### 13/12/2025 - Global Dynamic Optimization (Fluid Design)
+#### Global Dynamic Optimization (Fluid Design)
 - **Global Fluid Responsiveness**:
   - **Fluid CSS**: Replaced fixed pixel widths with `clamp()`, `min()`, and `max()` across the entire application.
   - **Device Agnostic**: UI now scales linearly from **320px (iPhone SE)** to **1920px+ (Desktop)**, supporting all intermediate sizes (Foldables, Tablets).
@@ -65,7 +76,7 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Tools Library & Watchtower**: Implemented `auto-fit` grids that automatically reflow content based on available width, eliminating hard breakpoints.
   - **Agent Registry**: Fluid sidebar and responsive grid layouts for seamless scaling.
 
-### 13/12/2025 - Tablet & Foldable Optimization
+#### Tablet & Foldable Optimization
 - **Tablet & Foldable Support**:
   - **Global Breakpoints**: Shifted the "Desktop" breakpoint from `md` (768px) to `lg` (1024px) to better support iPad Mini and unfolded foldable devices.
   - **"Mobile-Plus" Strategy**: Devices between 768px and 1023px now use a hybrid layout with hidden sidebars (drawer mode) to maximize content area.
@@ -77,7 +88,7 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Watchtower**:
   - **Responsive Grid**: Tuned the dashboard grid to use 2 columns on tablets (`md:grid-cols-2`) for better spacing.
 
-### 13/12/2025 - Mobile Optimization & Polish
+#### Mobile Optimization & Polish
 - **Agent Registry Mobile Experience**:
   - **Responsive Layout**: Implemented a master-detail stack layout for mobile. The sidebar (tabs) and content areas now stack vertically or toggle appropriately, ensuring full accessibility on small screens.
   - **Navigation Fix**: Resolved a "blank screen" bug when navigating back from an agent detail view by correctly resetting the selection state.
@@ -90,7 +101,9 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Sidebar**: Increased vertical padding on navigation buttons to meet mobile touch target standards.
   - **Type Safety**: Added global type definition for `window.aistudio` to resolve lint errors.
 
-### 12/12/2025 - UX & Performance Fixes
+### 12/12/2025
+
+#### UX & Performance Fixes
 - **Concurrent Workflow Execution**:
   - **Parallel Processing**: Refactored `AgentOrchestrator` to use `Promise.all` for tool execution.
   - **Benefit**: Agents can now delegate to multiple sub-agents simultaneously (e.g., "Research topic X and topic Y"), significantly reducing wait times for complex parallel tasks.
@@ -98,7 +111,7 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Navigation**: Added a "Back to Builder" button in the Architect Chat header, allowing users to easily return to the visual diagram after refining their agent.
   - **Duplicate Sync Fix**: Resolved a bug where the "Synced your manual changes" confirmation message would appear twice. The logic now correctly checks the last *visible* message, ignoring hidden system state updates.
 
-### 12/12/2025 - Codebase Rearchitecture
+#### Codebase Rearchitecture
 - **Folder Structure**:
   - **`src/`**: Moved all React frontend code (`components`, `services`, `App.tsx`) to `src/` for better organization.
   - **`server/`**: Moved `server.js` to `server/index.js` to isolate backend logic.
@@ -108,7 +121,7 @@ All notable changes to the Agent Builder project will be documented in this file
   - Updated `Dockerfile`, `package.json`, `vite.config.ts`, and `index.html` to support the new structure.
   - Updated `server/index.js` to correctly serve static assets from `../dist`.
 
-### 12/12/2025 - Report Formatter & Mock Tester
+#### Report Formatter & Mock Tester
 - **Report Formatter Tool**:
   - **New Tool**: Added `publish_report` utility that allows agents to generate structured, rich-text reports.
   - **Rich Text Rendering**: Integrated `react-markdown` and `remark-gfm` to render tables, lists, and code blocks beautifully within the chat interface.
@@ -119,7 +132,7 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Dependencies**:
   - Added `react-markdown`, `remark-gfm`, and `@tailwindcss/typography`.
 
-### 12/12/2025 - Session Separation & Model Selector
+#### Session Separation & Model Selector
 - **Session Separation**:
   - **Dynamic Draft IDs**: Implemented a `draftId` system in `App.tsx`. Every "New Agent" action generates a unique UUID, ensuring a completely fresh Architect Chat session.
   - **History Migration**: Automatically migrates chat history from the temporary `draftId` to the permanent `agentId` upon agent creation.
@@ -133,7 +146,7 @@ All notable changes to the Agent Builder project will be documented in this file
 - **Bug Fixes**:
   - **Model Parameter**: Fixed a bug in `AgentBuilder.tsx` where the selected model was not being passed to the backend service.
 
-### 12/12/2025 - Tools Library Overhaul
+#### Tools Library Overhaul
 - **Tagging System**:
   - **Multi-Tag Support**: Migrated from single-category "pills" to a flexible tagging system. Tools can now have multiple tags (e.g., `['Data Retrieval', 'Transport']`), allowing for better classification and discoverability.
   - **Smart Filtering**: The new `CategoryDropdown` filters tools by checking if they *contain* the selected tag, rather than an exact category match.
@@ -146,7 +159,7 @@ All notable changes to the Agent Builder project will be documented in this file
     - **Positioning**: Fixed inspector alignment on large screens (`lg:left-auto`) to ensure it stays on the right.
     - **Visuals**: Added unique icons for every tool (Globe, Train, MapPin, etc.) and enhanced the "Selected" state with a distinct glow.
 
-### 12/12/2025 - Architect Persistence & Enhancement Workflow
+#### Architect Persistence & Enhancement Workflow
 - **Architect Chat Persistence**:
   - Implemented **IndexedDB Storage** (via `idb-keyval`) to persist AI Architect chat sessions across page reloads.
   - **Smart Session Management**: Chat history is saved per-agent (or draft). Returning to the builder restores the context while still presenting the clean "Hero Input" for a fresh feel.
@@ -176,7 +189,9 @@ All notable changes to the Agent Builder project will be documented in this file
     - **Gemini 2.5 Flash**: Mapped directly to `gemini-2.5-flash` (1:1) per user preference, removing the experimental 2.0 fallback.
     - **No Gemini 2.0**: Explicitly removed `gemini-2.0-flash-exp` from active configuration to ensure stability.
 
-### 11/12/2025 - Veo 3.1 & Image-to-Video Support
+### 11/12/2025
+
+#### Veo 3.1 & Image-to-Video Support
 - **Veo 3.1 Implementation**:
   - Upgraded video generation to use **Veo 3.1** via Vertex AI's `predictLongRunning` LRO pattern.
   - Implemented robust **polling logic** (`fetchPredictOperation`) with exponential backoff (5s start, 1.5x multiplier, 60s cap).
@@ -191,17 +206,19 @@ All notable changes to the Agent Builder project will be documented in this file
   - **Syntax Errors**: Resolved syntax errors in `server.js` related to logging and markdown formatting.
   - **Logging**: Added timestamped logging (`log`, `logError`) to the backend for better debugging.
 
-### 11/12/2025 - NSW Trains Realtime Tool
+#### NSW Trains Realtime Tool
 - **New Tool**: Added `nsw_trains_realtime` to fetch live trip updates from Transport for NSW.
 - **Backend Proxy**: Implemented secure proxy in `server.js` to handle API authentication and Protobuf decoding (`gtfs-realtime-bindings`).
 - **Security**: API Key is stored server-side and never exposed to the client.
 
-### 11/12/2025 - NSW Metro Realtime Tool
+#### NSW Metro Realtime Tool
 - **New Tool**: Added `nsw_metro_realtime` to fetch live trip updates for the Sydney Metro network.
 - **Dynamic Proxy**: Refactored the backend endpoint to `/api/transport/:dataset` to support both Trains and Metro via a single secure proxy.
 - **NSW Trip Planner Tool**: Added `nsw_trip_planner` tool to plan trips between locations using specific transport modes (Train, Metro, Ferry, etc.). Implemented `/api/transport/planner/:endpoint` proxy.
 
-### 10/12/2025 - Cloud Run Deployment Support
+### 10/12/2025
+
+#### Cloud Run Deployment Support
 - **Added `Dockerfile`**:
   - Implemented multi-stage build (Node.js -> Nginx) for optimized production images.
 - **Added `nginx.conf`**:
@@ -212,14 +229,14 @@ All notable changes to the Agent Builder project will be documented in this file
   - Created `env.sh` and `services/config.ts` to support dynamic environment variables in Docker containers.
   - Solved "Missing API Key" error in Cloud Run by injecting the key into `window.ENV` at startup.
 
-### 10/12/2025 - Watchtower UI Update
+#### Watchtower UI Update
 - **Updated `components/Watchtower.tsx`**:
   - Renamed the label in the Intent Card from "sessions" to "detections".
   - This accurately reflects that the count represents the frequency of the detected intent, which may exceed the number of unique sessions if multiple intents are found per session or if the analysis spans fewer sessions than the count suggests.
 - **Updated `types.ts`**:
   - Updated `IntentGroup` interface comments to clarify the `count` property.
 
-### 10/12/2025 - Watchtower Observability Engine
+#### Watchtower Observability Engine
 - **Added `services/watchtower.ts`**:
   - Implemented `WatchtowerService` to perform batch analysis on agent sessions.
   - Utilizes `gemini-3-pro-preview` to cluster unstructured conversations into **Intent Groups**.
@@ -229,14 +246,14 @@ All notable changes to the Agent Builder project will be documented in this file
   - Created a dashboard UI visualizing "Live Pulse", "Intent Map", and "Recommendations".
   - Integrated into the main sidebar navigation.
 
-### 10/12/2025 - Sequential Session IDs
+#### Sequential Session IDs
 - **Updated `components/AgentBuilder.tsx`**:
   - Replaced random timestamp-based Session IDs with strict **Sequential IDs** (e.g., #1, #2, #3).
   - Implemented intelligent parsing to ignore legacy IDs and increment from the highest existing sequential number.
 - **Updated `components/AgentRegistry.tsx`**:
   - Improved session list display to show clean sequential numbers (e.g., "Session #1") versus legacy timestamps.
 
-### 10/12/2025 - Fix Duplicate Text Responses (Coordinator Echo)
+#### Fix Duplicate Text Responses (Coordinator Echo)
 - **Updated `services/orchestrator.ts`**:
   - Implemented a "Silent Handoff" strategy for text responses in multi-agent systems.
   - When a Coordinator delegates to a Sub-Agent, the Sub-Agent speaks directly to the user (preserving the "step-by-step" view).
@@ -244,40 +261,40 @@ All notable changes to the Agent Builder project will be documented in this file
   - Updated Coordinator System Instructions to explicitly forbid repeating information that has already been displayed.
   - This solves the issue where the Root Agent would unnecessarily summarize or echo the Sub-Agent's output.
 
-### 10/12/2025 - Fix Evaluation Report Rich Media & Token Limits
+#### Fix Evaluation Report Rich Media & Token Limits
 - **Updated `services/evaluation.ts`**:
   - `runSimulation` now captures "rich" content (images/videos) emitted by `AgentOrchestrator` via `onAgentResponse`, instead of relying on the text-only return value of `sendMessage`.
   - Implemented `compressForJudge` utility to strip large Base64 image data from the transcript before sending it to the AI Judge. This prevents `400 INVALID_ARGUMENT` (Token Limit) errors during evaluation of Imagen agents.
 - **Updated `components/AgentRegistry.tsx`**:
   - `renderEvaluationReport` now parses and renders markdown images and `VideoMessage` components in the transcript log, allowing users to see the generated media that was previously missing.
 
-### 10/12/2025 - Fix Video Generation 404 Error
+#### Fix Video Generation 404 Error
 - **Updated `services/orchestrator.ts`**:
   - Implemented auto-migration logic in `generateVideo` to catch usages of the deprecated `veo-3.0-fast-generate` model.
   - Automatically redirects these calls to `veo-3.1-fast-generate-preview`, preventing `404 NOT_FOUND` errors for existing agents.
 - **Updated `types.ts` & `mockAgentService.ts`**:
   - Removed `veo-3.0-fast-generate` from the list of available models to prevent new agents from being created with the deprecated ID.
 
-### 10/12/2025 - Added Imagen 4 Fast
+#### Added Imagen 4 Fast
 - **Updated `types.ts` & `mockAgentService.ts`**:
   - Added `imagen-4.0-fast-generate-001` to the supported models list.
   - Updated Architect prompts to be aware of this new model for fast photorealistic image generation tasks.
 
-### 10/12/2025 - Fix Duplicate Video/Image Outputs
+#### Fix Duplicate Video/Image Outputs
 - **Updated `services/orchestrator.ts`**:
   - Modified `generateVideo` and `generateImage` to return a simple system acknowledgement (e.g., "[System: Video generated and displayed to user]") instead of the rich media content.
   - The rich media (Video Link or Image Base64) is now **only** emitted via the `onAgentResponse` callback to the UI.
   - This prevents the "Echo" effect where the Coordinator agent (parent) would receive the media link as a tool result and repeat it to the user, causing duplicates.
   - **Performance**: This change also drastically reduces token usage for the Coordinator agent by preventing massive Base64 image strings from entering its context window.
 
-### 10/12/2025 - Agent Diagram Z-Index & Connectivity Fix
+#### Agent Diagram Z-Index & Connectivity Fix
 - **Updated `components/AgentDiagram.tsx`**:
   - Implemented dynamic Z-Index layering (`z-50` when active) for Agent Nodes.
   - Fixes an issue where the "Add Sub-Agent" menu was obscured or blocked by subsequent nodes in the tree hierarchy.
   - Reinforced connector line logic using `calc(50% + 1px)` to ensure seamless visual joints between tree arms and vertical stems.
   - Updated Add Menus to use `bg-slate-950` for better contrast and readability against the diagram background.
 
-### 10/12/2025 - Token Limit & UI Diagram Fixes
+#### Token Limit & UI Diagram Fixes
 - **Updated `services/orchestrator.ts`**:
   - Implemented `compressContent` logic to strip large Base64 image data from the conversation history sent to the API.
   - Resolves `400 INVALID_ARGUMENT (Token Limit)` errors caused by excessive context usage from generated images/videos.
@@ -288,57 +305,57 @@ All notable changes to the Agent Builder project will be documented in this file
   - Added `flex-shrink-0` to all structural wrappers to prevent layout compression from breaking the visual tree.
   - Standardized connector colors to `bg-slate-700`.
 
-### 10/12/2025 - Orchestrator Token Limit Fix
+#### Orchestrator Token Limit Fix
 - **Updated `services/orchestrator.ts`**:
   - Implemented `compressContent` utility to strip large Base64 image strings from conversation history before sending to Gemini.
   - Prevents `400 INVALID_ARGUMENT (Token Limit)` errors during long conversations involving image generation tools.
   - Replaces raw Base64 data with `[Image data hidden]` placeholders in the model context, while maintaining full display capabilities in the UI history.
 
-### 10/12/2025 - Video & Image Generation Fix
+#### Video & Image Generation Fix
 - **Updated `services/orchestrator.ts`**:
   - Implemented specialized handlers for `veo-*` (Video) and `imagen-*` (Image) models.
   - The orchestrator now detects these models and routes them to `ai.models.generateVideos` and `ai.models.generateImages` respectively, bypassing the default `generateContent` loop which causes 404 errors.
   - Added secure URI construction for Veo videos (appending API key) to allow playback in the UI.
 
-### 10/12/2025 - UI Font Adjustment
+#### UI Font Adjustment
 - **Updated `index.html`**:
   - Adjusted root font size from **21px** down to **18px** to provide a more balanced visual hierarchy while still offering improved readability over the default.
 
-### 10/12/2025 - UI Accessibility Update
+#### UI Accessibility Update
 - **Updated `index.html`**:
   - Increased global root font size to **21px** (approximately 30% larger than the 16px default).
   - Added CSS overrides for `text-[10px]` and `text-[9px]` to convert them to scalable `rem` units, ensuring metadata and badges resize proportionally with the rest of the interface.
 
-### 10/12/2025 - Added Gemini 2.5 Flash Lite
+#### Added Gemini 2.5 Flash Lite
 - **Updated `types.ts` & `mockAgentService.ts`**:
   - Added `gemini-flash-lite-latest` (Gemini 2.5 Flash Lite) to the supported models list.
   - Enabled this model for both Agent creation and the Evaluation Service simulator.
   - Retained strict filtering to ensure Video/Image models do not appear in the Evaluation Service dropdown.
 
-### 10/12/2025 - Evaluation Persistence
+#### Evaluation Persistence
 - **Updated `App.tsx`**:
   - Connected `handleAgentCreated` to the `AgentRegistry`'s `onUpdateAgent` prop.
   - Ensures that when an evaluation finishes in the Registry, the new report is immediately saved to the main application state and persisted to LocalStorage.
 
-### 10/12/2025 - Evaluation Resilience Update
+#### Evaluation Resilience Update
 - **Updated `services/evaluation.ts`**:
   - **Fixed Parsing Bug**: Updated `cleanJson` to correctly identify and extract JSON Arrays `[]` instead of defaulting to Objects `{}`, which was causing 0/10 scores.
   - **Added Retry Logic**: Implemented `retryOperation` wrapper for the Evaluation Judge to handle rate limits (429) gracefully.
   - **Fallback Model**: Added automatic fallback to `gemini-2.5-flash` if `gemini-3-pro-preview` fails to judge the transcript.
 
-### 10/12/2025 - Pure Coordinator Pattern
+#### Pure Coordinator Pattern
 - **Updated `mockAgentService.ts`**:
   - Modified Architect prompts to enforce a "Pure Coordinator" rule.
   - If a Root Agent has sub-agents, it is stripped of all tools (including `google_search`) to prevent API conflicts (Error 400).
   - Tools are now explicitly assigned only to leaf-node agents in multi-agent hierarchies.
   - Single-agent systems retain the ability to use `google_search` on the Root.
 
-### 10/12/2025 - Google Search Tool Conflict Resolution
+#### Google Search Tool Conflict Resolution
 - **Fixed `AgentOrchestrator` Crash**: Resolved `400 INVALID_ARGUMENT` error when mixing `googleSearch` with other tools.
   - Implemented conflict detection: If Function Declarations (including `delegate_to_agent`) are present, Native Google Search is strictly disabled for that turn.
   - Prioritized structural integrity (Coordinator delegation) over Search Grounding to ensure system stability.
 
-### 10/12/2025 - System Resilience & Type Safety Update
+#### System Resilience & Type Safety Update
 - **Refactored `AgentOrchestrator`**:
   - Restored full `retryOperation` logic with correct exponential backoff for 429/503 errors.
   - Hardened `runAgentLoop` against recursion depth and infinite loops.

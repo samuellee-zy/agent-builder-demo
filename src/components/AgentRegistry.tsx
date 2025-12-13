@@ -776,7 +776,7 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
               </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
               {filteredAgents.length === 0 && (
                   <div className="col-span-full flex flex-col items-center justify-center p-12 text-slate-500">
                       <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">

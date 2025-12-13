@@ -108,13 +108,21 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
     const [apiKey, setApiKey] = useState('managed'); // Default to managed
 
+    // Track previous agent ID to prevent unnecessary resets
+    const prevAgentIdRef = useRef<string | null>(null);
+
   // Load initial agent if provided
   useEffect(() => {
     if (initialAgent) {
       setRootAgent(initialAgent);
-      setSelectedAgentId(initialAgent.id);
-      setStep('review');
-      setHistory([]); // Reset history on load
+
+        // Only reset view state if we've actually switched agents
+        if (initialAgent.id !== prevAgentIdRef.current) {
+            setSelectedAgentId(initialAgent.id);
+            setStep('review');
+            setHistory([]); // Reset history on load
+            prevAgentIdRef.current = initialAgent.id;
+        }
     }
   }, [initialAgent]);
 

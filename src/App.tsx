@@ -28,6 +28,8 @@ const App: React.FC = () => {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const [builderResetKey, setBuilderResetKey] = useState(0);
+
   // Load persistence
   useEffect(() => {
     const init = async () => {
@@ -82,9 +84,13 @@ const App: React.FC = () => {
         recentAgents={agents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)}
         onNewAgent={() => {
           setSelectedAgentId(null);
+          setBuilderResetKey(prev => prev + 1); // Force new session
           setActiveTab('aop'); // Use AOP for Builder
         }}
         onSelectAgent={(agent) => {
+          if (selectedAgentId === agent.id) {
+            setBuilderResetKey(prev => prev + 1); // Force reset if clicking same agent
+          }
           setSelectedAgentId(agent.id);
           setActiveTab('aop');
         }}
@@ -111,6 +117,7 @@ const App: React.FC = () => {
             onNavigate={setActiveTab}
             onNewAgent={() => {
               setSelectedAgentId(null);
+              setBuilderResetKey(prev => prev + 1);
               setActiveTab('aop');
             }}
           />
@@ -133,6 +140,9 @@ const App: React.FC = () => {
               setActiveTab('aop');
             }}
             onSelectAgent={(agent) => {
+              if (selectedAgentId === agent.id) {
+                setBuilderResetKey(prev => prev + 1);
+              }
               setSelectedAgentId(agent.id);
               // We might want to switch to 'aop' or just stay in registry? 
               // Usually 'Select' implies focus. Let's switch to 'aop' for now as that's the main "View" mode for this app structure.
@@ -152,7 +162,7 @@ const App: React.FC = () => {
 
         {activeTab === 'aop' && (
           <AgentBuilder
-            key={selectedAgentId || 'new'}
+            key={`${selectedAgentId || 'new'}-${builderResetKey}`}
             initialAgent={agents.find(a => a.id === selectedAgentId)}
             onAgentCreated={handleCreateAgent}
             draftId={selectedAgentId || undefined}
