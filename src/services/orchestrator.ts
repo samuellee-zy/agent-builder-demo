@@ -1,3 +1,14 @@
+/**
+ * @file src/services/orchestrator.ts
+ * @description The Runtime Engine for Agent Execution.
+ * 
+ * CORE RESPONSIBILITIES:
+ * 1. **Message Dispatch**: Routes user messages to the appropriate Agent.
+ * 2. **Tool Execution**: Handles the "Function Calling" loop (Model -> Tool -> Model).
+ * 3. **Coordinator Pattern**: Automatically injects logic for "Group" agents to delegate tasks to sub-agents.
+ * 4. **Reliability**: Implements robust Retry Logic with Exponential Backoff for API stability.
+ * 5. **Optimization**: Compresses chat history (e.g. stripping base64 images) to manage context window limits.
+ */
 
 import { Agent, ChatMessage } from '../types';
 import { AVAILABLE_TOOLS_REGISTRY } from './tools';
@@ -6,8 +17,11 @@ import { FunctionDeclaration, Type, GenerateContentResponse, Tool as GenAITool, 
 
 interface OrchestratorOptions {
   rootAgent: Agent;
+  /** Callback fired when a tool starts execution (e.g. for UI spinners). */
   onToolStart?: (agentName: string, toolName: string, args: any) => void;
+  /** Callback fired when a tool completes. */
   onToolEnd?: (agentName: string, toolName: string, result: any) => void;
+  /** Callback fired when an agent generates a text chunk (streaming-like update). */
   onAgentResponse?: (agentName: string, content: string) => void;
 }
 
@@ -16,7 +30,8 @@ const PAID_MODELS = ['veo', 'imagen', 'gemini-3-pro-image-preview'];
 
 /**
  * The Orchestrator manages the interaction between agents.
- * It handles the Coordinator Pattern by dynamically injecting a `delegate_to_agent` tool.
+ * It handles the Coordinator Pattern by dynamically injecting a `delegate_to_agent` tool
+ * when an agent has sub-agents.
  */
 export class AgentOrchestrator {
   private rootAgent: Agent;
@@ -52,6 +67,11 @@ export class AgentOrchestrator {
   /**
    * Generic Retry Wrapper for any async operation with Exponential Backoff.
    * Handles 503 (Overloaded) and 429 (Rate Limit) specifically.
+   * 
+   * Strategy:
+   * - **429 (Rate Limit)**: Respecs `retry-after` header content if present, else exponential backoff with a higher floor (6s).
+   * - **503 (Overloaded)**: Standard exponential backoff.
+   * - **Others**: Retry a few times for transient network glitches.
    */
   private async retryOperation<T>(operation: () => Promise<T>, retries = 6, initialDelay = 2000): Promise<T> {
     let delay = initialDelay;
@@ -247,6 +267,8 @@ export class AgentOrchestrator {
     }
 
     // 3. Coordinator Logic
+    // If this agent has subAgents, it becomes a "Manager".
+    // We inject the 'delegate_to_agent' tool and special system instructions.
     if (agent.subAgents && agent.subAgents.length > 0) {
         systemInstruction += `\n\n### COORDINATION PROTOCOL
 You are a Coordinator. You have access to the following Sub-Agents:
@@ -344,6 +366,7 @@ RULES:
                     let functionResult;
 
                     if (name === 'delegate_to_agent') {
+                      // RECURSION: The tool call triggers a new AgentOrchestrator loop for the sub-agent
                         const subAgentName = args['agentName'] as string;
                         const task = args['task'] as string;
                         const subAgent = agent.subAgents?.find(sa => sa.name === subAgentName);
@@ -356,6 +379,7 @@ RULES:
                             functionResult = `Error: Agent '${subAgentName}' not found. Available: ${agent.subAgents?.map(s => s.name).join(', ')}`;
                         }
                     } else {
+                      // STANDARD TOOL EXECUTION
                         const toolDef = AVAILABLE_TOOLS_REGISTRY[Object.keys(AVAILABLE_TOOLS_REGISTRY).find(k => AVAILABLE_TOOLS_REGISTRY[k].functionDeclaration.name === name) || ''];
                         
                         if (toolDef) {

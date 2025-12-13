@@ -17,6 +17,19 @@ interface AgentDiagramProps {
   sequenceIndex?: number;
 }
 
+/**
+ * @file src/components/AgentDiagram.tsx
+ * @description The Interactive Visualization Engine.
+ * 
+ * CORE LOGIC:
+ * 1. **Recursive Hierarchy**: Renders agents nested within groups (Sequential or Concurrent).
+ * 2. **Smart Connectors**: 
+ *    - Draws vertical lines for Sequential groups.
+ *    - Draws tree-like arms for Concurrent groups.
+ * 3. **Context Menus**: Allows adding sub-agents or groups via a floating "+" button.
+ * 4. **Z-Index Management**: Intelligently lifts active nodes above siblings during menu interaction.
+ */
+
 export const AgentDiagram: React.FC<AgentDiagramProps> = ({ 
   agent, 
   selectedId, 

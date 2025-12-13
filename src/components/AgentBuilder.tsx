@@ -1,3 +1,19 @@
+/**
+ * @file src/components/AgentBuilder.tsx
+ * @description The Core "IDE" for Agent Creation and Testing.
+ * 
+ * WORKFLOW STEPS:
+ * 1. **Input (Chat)**: User converses with the "Architect" persona to define requirements.
+ * 2. **Building (Spinner)**: The Architect generates a JSON spec for the agent system.
+ * 3. **Review (Visual Builder)**: User views the Agent Diagram, edits configs, and refines instructions.
+ * 4. **Testing (Simulator)**: User runs the agent in an interactive chat session to verify behavior.
+ * 
+ * KEY FEATURES:
+ * - **Undo/Redo**: Maintains a history stack of Agent configurations.
+ * - **Live Preview**: Updates the `AgentDiagram` as you edit.
+ * - **Test Environment**: Authentic simulation using `AgentOrchestrator` with real tool execution.
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
@@ -48,6 +64,8 @@ interface AgentBuilderProps {
   initialAgent?: Agent; // Support reloading an existing agent
     draftId?: string;
 }
+
+
 
 export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, initialAgent, draftId }) => {
   const [step, setStep] = useState<BuildStep>('input');
@@ -170,6 +188,11 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
 
   // --- Architect Chat Logic ---
+
+    /**
+     * Sends user input to the Architect Persona.
+     * Updates local chat state and triggers the mock agent service.
+     */
   const handleArchitectSend = async () => {
     if (!architectInput.trim()) return;
     if (!hasStarted) setHasStarted(true);
@@ -200,6 +223,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     }
   };
 
+    /**
+     * Triggers the "Build" phase.
+     * Uses the full chat history to generate the initial Agent Configuration JSON.
+     */
   const handleBuildFromChat = async () => {
     setStep('building');
     try {
@@ -215,6 +242,9 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     }
   };
 
+    /**
+     * Manual override to skip chat and start with a blank slate.
+     */
   const handleSkipToVisualBuilder = () => {
     const defaultRoot: Agent = {
         id: `root-${Date.now()}`,
@@ -447,6 +477,13 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
   };
 
   // --- Real Orchestration Testing Logic ---
+
+    /**
+     * Initializes a new Testing Session.
+     * - Creates a new Session ID.
+     * - Injects the initial "System Online" message.
+     * - Updates the Agent's session history.
+     */
   const handleStartTest = async () => {
     if (!rootAgent) return;
     
@@ -499,6 +536,12 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
       handleStartTest();
   };
 
+    /**
+     * Sends a user message to the active Test Session.
+     * Uses `AgentOrchestrator` to execute the agent logic (tools, delegation, etc.).
+     * 
+     * @param inputOverride - Optional message text (used for retries or programmatic sends).
+     */
   const handleTestSendMessage = async (inputOverride?: string) => {
     const textToSend = inputOverride || testInput;
     if (!textToSend.trim() || !rootAgent) return;
@@ -771,6 +814,9 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     </div>
   );
 
+    /**
+     * Renders the Chat Interface for the "Input" step.
+     */
   const renderArchitectChat = () => (
       <div className="flex flex-col h-full bg-slate-900 animate-in fade-in duration-300 relative">
           {/* Navigation Header */}
@@ -854,6 +900,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
 
     const [showMobileInspector, setShowMobileInspector] = useState(false);
 
+    /**
+     * Renders the Visual Builder for the "Review" step.
+     * Includes the Diagram (Left) and Inspector Panel (Right).
+     */
   const renderArchitectView = () => (
       <div className="flex h-full overflow-hidden bg-slate-900 relative">
         {/* Left: Diagram Canvas */}
@@ -1085,6 +1135,10 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
     </div>
   );
 
+    /**
+     * Renders the Simulator Interface for the "Testing" step.
+     * Displays the chat window and tool execution logs.
+     */
   const renderTestingStep = () => (
     <div className="h-full flex flex-col bg-slate-900">
         <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">

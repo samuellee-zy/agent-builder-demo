@@ -23,6 +23,17 @@ interface WatchtowerProps {
   onUpdateAgent: (agent: Agent) => void;
 }
 
+/**
+ * @file src/components/Watchtower.tsx
+ * @description The Observability Dashboard ("Watchtower").
+ * 
+ * FEATURES:
+ * 1. **Live Pulse**: Real-time metrics (Last Active, Total Sessions).
+ * 2. **Deep Analysis**: Triggers `WatchtowerService` to generate insights.
+ * 3. **Visualization**: Displays Intent Clusters, Sentiment Scores, and Latency.
+ * 4. **Recommendations**: Shows strategic improvements suggested by the AI.
+ */
+
 export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent }) => {
   const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || '');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -41,6 +52,10 @@ export const Watchtower: React.FC<WatchtowerProps> = ({ agents, onUpdateAgent })
 
   const liveMetrics = getLiveMetrics();
 
+    /**
+     * Triggers the Watchtower Analysis Service.
+     * Sends the agent's session history to Gemini for offline evaluation.
+     */
   const handleRunAnalysis = async () => {
     if (!selectedAgent) return;
     setIsAnalyzing(true);

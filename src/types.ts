@@ -1,58 +1,120 @@
+/**
+ * @file src/types.ts
+ * @description Core Data Models and Type Definitions.
+ * 
+ * This file serves as the Single Source of Truth for the application's data structures.
+ * It defines the shape of Agents, Sessions, Tools, and Analysis data.
+ */
+
 import { FunctionDeclaration } from "@google/genai";
 
+/**
+ * Represents a single AI Agent in the system.
+ * This structure supports recursion via the `subAgents` field, enabling complex hierarchies.
+ */
 export interface Agent {
+  /** Unique UUID for the agent. */
   id: string;
+  /** Display name of the agent. */
   name: string;
+  /** Short description of the agent's role (visible to other agents). */
   description: string;
+  /** The primary objective of the agent. */
   goal: string;
+  /** System instructions/prompt for the agent. */
   instructions: string;
-  tools: string[]; // IDs of tools
+  /** Array of Tool IDs that this agent allows. */
+  tools: string[];
+  /** Model ID (e.g., 'gemini-2.5-flash'). */
   model: string;
+  /** Creation timestamp. */
   createdAt: Date;
+  /** Recursive list of sub-agents (children). */
   subAgents?: Agent[];
   
-  // Architecture Patterns
+  // -- Architecture Patterns --
+  /**
+   * 'agent': A standard functional agent.
+   * 'group': A container for multiple sub-agents.
+   */
   type: 'agent' | 'group';
+  /**
+   * Execution mode for groups:
+   * 'sequential': A -> B -> C (Pipeline).
+   * 'concurrent': A + B + C (Parallel).
+   */
   groupMode?: 'sequential' | 'concurrent';
 
-  // Historical Data
+  // -- Historical Data --
+  /** Chat history sessions. */
   sessions?: AgentSession[];
+  /** Evaluation reports from the 'Test' phase. */
   evaluations?: EvaluationReport[];
   
-  // Watchtower Cache
+  // -- Watchtower Cache --
+  /** Cached analysis results from the Watchtower service. */
   watchtowerAnalysis?: WatchtowerAnalysis;
 }
 
+/**
+ * Represents a chat session history.
+ */
 export interface AgentSession {
   id: string;
   timestamp: Date;
   messages: ChatMessage[];
 }
 
+/**
+ * A single message in the chat transcript.
+ * Supports rich metadata for tool calls, reports, and latency tracking.
+ */
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
-  sender?: string; // Name of the agent who sent this message
+  /** Name of the specific agent who generated this message (useful in multi-agent chats). */
+  sender?: string;
   content: string;
   timestamp: number;
-  latency?: number; // In milliseconds
-  // For UI visualization of tool calls/thought process
+  /** API Latency in milliseconds (for performance tracking). */
+  latency?: number;
+
+  /**
+   * Structured data for UI visualization of tool executions.
+   * Allows the UI to render "Thinking..." states or specific tool outputs.
+   */
   toolCalls?: { name: string; args: any; result?: any }[];
-  reportData?: { title: string; content: string; summary: string }; // For structured reports
-  hidden?: boolean; // If true, not shown in UI but sent to model
+
+  /** 
+   * For the 'publish_report' tool.
+   * Content here is rendered as a special Report Card UI.
+   */
+  reportData?: { title: string; content: string; summary: string };
+
+  /** 
+   * If true, this message is hidden from the UI but still sent to the model context.
+   * Used for 'silent handoffs' or system prompts.
+   */
+  hidden?: boolean;
 }
 
+/**
+ * Phases of the Agent Builder wizard.
+ */
 export type BuildStep = 'input' | 'building' | 'review' | 'testing';
 
+/**
+ * Definition of a Tool available to agents.
+ */
 export interface Tool {
   id: string;
   name: string;
   description: string;
   category: string;
   tags: string[];
-  // The schema sent to Gemini
+  /** The schema configuration sent to the Gemini API. */
   functionDeclaration: FunctionDeclaration; 
-  // The actual JS implementation
+  /** The actual JavaScript implementation of the tool. */
   executable: (args: any) => Promise<any> | any;
 }
 
@@ -89,7 +151,8 @@ export interface WatchtowerAnalysis {
   };
 }
 
-// Evaluation Interfaces
+// -- Evaluation Interfaces --
+
 export interface EvaluationMetric {
   name: 'Response Time' | 'Accuracy' | 'User Satisfaction' | 'System Stability';
   score: number; // 1-10
@@ -124,6 +187,10 @@ export interface EvaluationReport {
   };
 }
 
+/**
+ * List of available Gemini models with metadata.
+ * These are displayed in the "Model" dropdown in the Agent Builder.
+ */
 export const AVAILABLE_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast, cost-efficient, low latency.' },
   { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash Lite', description: 'Extremely cost-effective, high throughput.' },
@@ -183,13 +250,5 @@ export const web_search_mock = async ({ query }) => {
 export const SAMPLE_AGENTS: Agent[] = [];
 
 // Global type augmentation for AI Studio
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-
-  interface Window {
-    aistudio: AIStudio;
-  }
-}
+// Redundant global declaration removed. 
+// See src/global.d.ts for Window interface augmentations.

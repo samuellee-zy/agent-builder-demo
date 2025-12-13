@@ -1,15 +1,36 @@
+/**
+ * @file src/services/api.ts
+ * @description Generic API Client Wrapper for the Backend Proxy.
+ * 
+ * Handles:
+ * 1. Constructing the request body for Vertex AI (Gemini) format.
+ * 2. Sending requests to `/api/generate`.
+ * 3. Error handling and logging.
+ */
+
 export interface GenerateContentOptions {
   model: string;
   prompt?: string;
+  /** Chat history or multimodal content parts. */
   contents?: any[];
   systemInstruction?: string;
   stream?: boolean;
+  /** History array to be prepended to the current prompt. */
   history?: any[];
   responseMimeType?: string;
+  /** List of tool definitions. */
   tools?: any[];
+  /** Base64 image data (optional). */
   image?: string | null;
 }
 
+/**
+ * Sends a generation request to the backend API.
+ * 
+ * @param options - Configuration including model, prompt, and context.
+ * @returns The parsed JSON response from the backend.
+ * @throws Error if the API call fails or returns non-JSON error.
+ */
 export async function generateContent(options: GenerateContentOptions) {
   let body: any = { ...options };
 
@@ -59,3 +80,4 @@ export async function generateContent(options: GenerateContentOptions) {
   console.log(`[API Response] ${options.model}`, data);
   return data;
 }
+

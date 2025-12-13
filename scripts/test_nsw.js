@@ -1,3 +1,13 @@
+/**
+ * @file scripts/test_nsw.js
+ * @description Verification script for Transport NSW Realtime Trains API.
+ * 
+ * PURPOSE:
+ * - Validates API Key (`TFNSW_API_KEY`).
+ * - Fetches `sydneytrains` GTFS-R feed.
+ * - Decodes Protobuf response to JSON to ensure `gtfs-realtime-bindings` works.
+ */
+
 import fetch from 'node-fetch';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import dotenv from 'dotenv';

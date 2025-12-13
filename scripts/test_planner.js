@@ -1,3 +1,17 @@
+/**
+ * @file scripts/test_planner.js
+ * @description Verification script for Transport NSW Trip Planner API.
+ * 
+ * SEQUENCE:
+ * 1. **Stop Finder**: Resolves "Central Station" ID.
+ * 2. **Stop Finder**: Resolves "Manly Wharf" ID.
+ * 3. **Trip Planner**: Calculates a Ferry-only route between them.
+ * 
+ * PURPOSE:
+ * - verify complex query parameter construction (Date/Time, Exclusion bitmasks).
+ * - Ensure proper JSON response parsing.
+ */
+
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 

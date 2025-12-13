@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Film, Download, AlertCircle } from 'lucide-react';
 
+/**
+ * @file src/components/VideoMessage.tsx
+ * @description Secure Video Player Component.
+ * 
+ * FEATURES:
+ * 1. **Authenticated Fetch**: Retries video load with credentials if needed (handled by valid URL).
+ * 2. **Blob Rendering**: Converts response to Blob URL for secure playback without exposing raw tokens in DOM if possible.
+ * 3. **Download**: Provides a direct download link (useful for generated content).
+ */
+
 export const VideoMessage: React.FC<{ src: string }> = ({ src }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);

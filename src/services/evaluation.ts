@@ -1,3 +1,13 @@
+/**
+ * @file src/services/evaluation.ts
+ * @description The "Automated QA" Service.
+ * 
+ * CORE COMPONENTS:
+ * 1. **User Simulator**: A Persona that generates realistic user messages based on a scenario.
+ * 2. **System Under Test**: The `AgentOrchestrator` running the agent being tested.
+ * 3. **LLM Judge**: Evaluates the resulting conversation transcript on key metrics.
+ */
+
 import { Agent, ChatMessage, EvaluationMetric, EvaluationReport, EvaluationSession } from '../types';
 import { AgentOrchestrator } from './orchestrator';
 import { generateContent } from './api';
@@ -35,6 +45,9 @@ const compressForJudge = (text: string): string => {
   return text.replace(/!\[(.*?)\]\(data:image\/[^;]+;base64,[^)]+\)/g, '![Generated Image] (Image data hidden to save tokens)');
 };
 
+/**
+ * Service to orchestrate the "AI vs AI" simulation loop.
+ */
 export class EvaluationService {
   // private ai: GoogleGenAI; // No longer needed as generateContent is a static helper
 
@@ -107,6 +120,16 @@ export class EvaluationService {
 
   /**
    * Runs a single simulation session.
+   * 
+   * THE SIMULATION LOOP:
+   * 1. **Simulator** generates the first message based on the Scenario.
+   * 2. **System (Agent)** acts on the user message.
+   * 3. **Simulator** reads the System's response and generates the next user message (reply).
+   * 4. Repeat for MAX_TURNS.
+   * 
+   * @param agent - The agent to test.
+   * @param scenario - The specific task or intent to test.
+   * @param simulatorModel - The Gemini model powering the User Simulator.
    */
   async runSimulation(
     agent: Agent, 
@@ -125,7 +148,7 @@ export class EvaluationService {
     let turnMessages: ChatMessage[] = [];
     
     const orchestrator = new AgentOrchestrator({
-      apiKey: '', // No longer needed
+      // apiKey REMOVED: Now handled by backend proxy
       rootAgent: agent,
       onAgentResponse: (name, content) => {
           // DEDUPLICATION: Check against the last message in THIS turn buffer
@@ -259,7 +282,11 @@ Reply as the user in the scenario: ${scenario}`
   }
 
   /**
-   * Uses Gemini 3 Pro (with Flash fallback) to judge the transcript.
+   * Uses "LLM as a Judge" pattern to evaluate the transcript.
+   * 
+   * Uses Gemini 3 Pro (Reasoning) to behave as a strict QA judge.
+   * It analyzes the full conversation context (compressed) and outputs 
+   * structured scores (1-10) with reasoning.
    */
   private async evaluateTranscript(
     scenario: string, 

@@ -8,6 +8,17 @@ import { Terminal, Code2, Zap, LayoutGrid, Database, HeadphonesIcon, Calculator,
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+/**
+ * @file src/components/ToolsLibrary.tsx
+ * @description The Tool Catalog and Testing Workbench.
+ * 
+ * FEATURES:
+ * 1. **Catalog**: browsable list of all available tools (`AVAILABLE_TOOLS_LIST`).
+ * 2. **Filtering**: Search by name or tag/category.
+ * 3. **Inspector**: Detailed view of a tool's schema and description.
+ * 4. **Mock Tester**: Interactive UI to execute tools with custom parameters and view raw output.
+ */
+
 export const ToolsLibrary: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +97,10 @@ export const ToolsLibrary: React.FC = () => {
     setTestParams(prev => ({ ...prev, [key]: value }));
   };
 
+    /**
+     * Executes the selected tool with the current test parameters.
+     * Displays the valid JSON result or error message.
+     */
   const handleRunMock = async () => {
     if (!selectedTool) return;
     setIsExecuting(true);

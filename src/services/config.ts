@@ -1,5 +1,12 @@
+/**
+ * @file src/services/config.ts
+ * @description Global application configuration constants.
+ * 
+ * Note: Authentication logic (API Keys) has been moved to the backend proxy
+ * (`server/index.js`) to support Application Default Credentials (ADC) and
+ * enhance security by not exposing keys to the client.
+ */
+
 // Config Service
-// API Key logic has been removed as we now use a backend proxy (server.js)
-// which handles authentication via Vertex AI (ADC).
 
 export const getAppVersion = () => '1.0.0';

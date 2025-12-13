@@ -1,3 +1,12 @@
+/**
+ * @file src/services/storage.ts
+ * @description Persistence Layer using IndexedDB.
+ * 
+ * Why IndexedDB?
+ * LocalStorage is synchronous and limited to ~5MB.
+ * Rich media (base64 images) in chat history can easily exceed this limit.
+ * IndexedDB is asynchronous and supports much larger storage quotas.
+ */
 
 import { Agent } from '../types';
 import { get, set } from 'idb-keyval';
@@ -5,13 +14,14 @@ import { get, set } from 'idb-keyval';
 const STORAGE_KEY = 'agent_builder_data_v1';
 
 /**
- * Saves the list of agents to IndexedDB (No 5MB limit).
+ * Saves the list of agents to IndexedDB.
+ * Uses `idb-keyval` for a simple Promise-based API.
+ * 
+ * @param agents - Array of Agent objects to persist.
  */
 export const saveAgentsToStorage = async (agents: Agent[]): Promise<void> => {
   try {
-    // No need to serialize manually, idb-keyval handles structured cloning
-    // But we might want to ensure it's clean JSON-compatible data if we have complex objects
-    // For now, direct save is fine and much more efficient.
+    // idb-keyval uses Structured Clone Algorithm, so it handles complex objects efficiently.
     await set(STORAGE_KEY, agents);
     console.log('Agents saved to IndexedDB');
   } catch (error) {
@@ -21,26 +31,31 @@ export const saveAgentsToStorage = async (agents: Agent[]): Promise<void> => {
 };
 
 /**
- * Loads agents from IndexedDB.
+ * Loads agents from IndexedDB, with a fallback migration from LocalStorage.
+ * 
+ * Migration Logic:
+ * 1. Check IDB first.
+ * 2. If empty, check LocalStorage (legacy location).
+ * 3. If found in LocalStorage, migrate to IDB and clear LocalStorage.
+ * 
+ * @returns {Promise<Agent[]>} List of agents.
  */
 export const loadAgentsFromStorage = async (): Promise<Agent[]> => {
   try {
-    // Try loading from IndexedDB first
+    // 1. Try loading from IndexedDB
     const agents = await get<Agent[]>(STORAGE_KEY);
 
     if (agents) {
-      // Hydrate dates if they were stored as strings (legacy) or just return
-      // IndexedDB stores Date objects natively, so we might not need hydration if we saved them as Dates.
-      // But if we migrated from localStorage, we might need to handle strings.
-      // Let's assume we might get strings if we just migrated.
+      // Hydrate Date objects if they were serialized as strings (e.g. from JSON import/export)
       return agents.map(hydrateDates);
     }
 
-    // FALLBACK: Check LocalStorage for migration
+    // 2. FALLBACK: Check LocalStorage for migration
     const legacy = localStorage.getItem(STORAGE_KEY);
     if (legacy) {
       console.log("Migrating data from LocalStorage to IndexedDB...");
       const parsed = JSON.parse(legacy, (key, value) => {
+        // Custom reviver for basic Date strings
         if ((key === 'createdAt' || key === 'timestamp') && typeof value === 'string') {
           const date = new Date(value);
             if (!isNaN(date.getTime())) return date;
@@ -48,9 +63,8 @@ export const loadAgentsFromStorage = async (): Promise<Agent[]> => {
           return value;
         });
 
-      // Save to IDB
+      // 3. Save to IDB & Clean up
       await set(STORAGE_KEY, parsed);
-      // Clear LocalStorage to free up space
       localStorage.removeItem(STORAGE_KEY);
       return parsed;
     }
@@ -62,11 +76,14 @@ export const loadAgentsFromStorage = async (): Promise<Agent[]> => {
   }
 };
 
-// Helper to recursively hydrate dates in an object/array
+/**
+ * Recursively traverses an object to convert ISO Date strings back into Date objects.
+ * Essential for correct timestamp handling after JSON deserialization.
+ */
 const hydrateDates = (obj: any): any => {
   if (obj instanceof Date) return obj;
   if (typeof obj === 'string') {
-    // Simple heuristic for ISO dates
+    // Simple heuristic for ISO dates used in this app
     if (obj.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
       const d = new Date(obj);
       if (!isNaN(d.getTime())) return d;

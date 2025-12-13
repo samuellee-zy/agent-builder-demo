@@ -1,5 +1,16 @@
 
 
+/**
+ * @file src/App.tsx
+ * @description Main Application Shell.
+ * 
+ * RESPONSIBILITIES:
+ * 1. **Global State**: Manages the list of Agents and the Active Tab.
+ * 2. **Persistence**: Syncs agents to IndexedDB via storage service.
+ * 3. **Routing**: Simple client-side tab switching (Architect, Watchtower, Registry, Tools).
+ * 4. **Layout**: Renders the Sidebar and Main Content Area.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AgentBuilder } from './components/AgentBuilder';

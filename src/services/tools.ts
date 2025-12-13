@@ -1,7 +1,21 @@
+/**
+ * @file src/services/tools.ts
+ * @description Central Registry of Executable Tools.
+ * 
+ * Each tool defined here must adhere to the `Tool` interface.
+ * - `functionDeclaration`: The schema sent to Gemini so it knows HOW to call the tool.
+ * - `executable`: The actual JavaScript logic executed by the Orchestrator when Gemini calls the tool.
+ */
 
 import { Tool } from '../types';
 import { Type } from '@google/genai';
 
+/**
+ * Registry of all available tools, keyed by their ID.
+ * To add a new tool:
+ * 1. Define it here with a unique key.
+ * 2. Ensure it has a valid `functionDeclaration` and `executable`.
+ */
 export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
   google_search: {
     id: 'google_search',
@@ -37,6 +51,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     },
     executable: ({ expression }: { expression: string }) => {
       try {
+        // Safe evaluation using Function constructor
         // eslint-disable-next-line no-new-func
         return Function(`"use strict"; return (${expression})`)();
       } catch (e) {
@@ -88,7 +103,13 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
         ]);
     }
   },
-  // --- CUSTOMER SERVICE TOOLS ---
+  // --- CUSTOMER SERVICE TOOLS (MOCK) ---
+
+  /**
+   * Mock Tool: Customer Lookup.
+   * Simulates retrieving VIP/Loyalty data from a CRM based on email.
+   * Has artificial latency to demonstrate "Thinking..." UI states.
+   */
   crm_customer_lookup: {
     id: 'crm_customer_lookup',
     name: 'CRM Customer Lookup',
@@ -244,6 +265,11 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
       });
     }
   },
+  /**
+   * Real Integration: NSW Trains Realtime.
+   * Fetches GTFS Realtime Feed from the backend proxy.
+   * Returns a truncated JSON to avoid overwhelming the LLM context context window with 10MB+ JSON files.
+   */
   nsw_trains_realtime: {
     id: 'nsw_trains_realtime',
     name: 'NSW Trains Realtime',
@@ -269,15 +295,9 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
           return `Error fetching train data: ${err.error || response.statusText}`;
         }
         const data = await response.json();
-        // The feed might be huge. We should probably summarize it or let the agent handle it.
-        // For now, let's return a summary or the first few entries if it's too big?
-        // Or just return it and rely on the agent to parse.
         // Warning: The raw feed can be very large (MBs).
-        // Let's truncate if it's too big or just return the entities count and a sample?
-        // The user wants "real time trip updates".
-        // Let's return the full data but maybe warn the agent if it's truncated?
-        // Actually, for a demo, let's just return it. The Orchestrator might truncate it if it's too large for context.
-        return JSON.stringify(data).substring(0, 50000); // Hard cap to prevent browser crash / context explosion
+        // We truncate to 50k chars to prevent context explosion.
+        return JSON.stringify(data).substring(0, 50000); 
       } catch (e) {
         return `Error: ${e}`;
       }
@@ -314,6 +334,14 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
       }
     }
   },
+  /**
+   * Real Integration: NSW Trip Planner.
+   * Multi-step execution:
+   * 1. Resolve Origin Stop ID.
+   * 2. Resolve Destination Stop ID.
+   * 3. Call Trip Planner API with exclusion logic for modes.
+   * 4. Summarize and Format journeys into human-readable text for the agent.
+   */
   nsw_trip_planner: {
     id: 'nsw_trip_planner',
     name: 'NSW Trip Planner',
@@ -339,7 +367,7 @@ export const AVAILABLE_TOOLS_REGISTRY: Record<string, Tool> = {
     },
     executable: async ({ origin, destination, mode }: { origin: string, destination: string, mode?: string }) => {
       try {
-        // Helper to find a stop ID
+        // Helper to find a stop ID using the stop_finder endpoint
         const findStop = async (query: string) => {
           const params = new URLSearchParams({
             type_sf: 'any',

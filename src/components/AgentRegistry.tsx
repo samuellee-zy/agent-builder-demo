@@ -31,6 +31,17 @@ const formatDate = (date: Date | string, includeTime = false) => {
   return dateStr;
 };
 
+/**
+ * @file src/components/AgentRegistry.tsx
+ * @description The Deployment & Management Hub.
+ * 
+ * CORE VIEWS:
+ * 1. **Grid View**: Lists all deployed agents with status summaries.
+ * 2. **Architecture Tab**: Read-only view of the agent's structure (using `AgentDiagram`).
+ * 3. **History Tab**: Playback interface for past sessions with latency/tool usage.
+ * 4. **Evaluation Tab**: Interface to trigger and view results of "LLM-as-a-Judge" audits.
+ */
+
 export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAgent, onUpdateAgent, onEditAgent }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeTab, setActiveTab] = useState<'architecture' | 'history' | 'evaluation'>('architecture');
@@ -48,7 +59,9 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
   const [evalProgress, setEvalProgress] = useState('');
   const [selectedReport, setSelectedReport] = useState<EvaluationReport | null>(null);
 
-  // Helper to count nodes
+    /**
+     * Helper to recursively count Models and Tools in an agent tree.
+     */
   const countNodes = (agent: Agent): { models: number, tools: number } => {
     let models = agent.type === 'agent' ? 1 : 0;
     let tools = agent.tools?.length || 0;
@@ -82,6 +95,10 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
       }
   };
 
+    /**
+     * Triggers a new Evaluation Audit.
+     * Uses `EvaluationService` to run simulations and generate a report.
+     */
   const handleRunEvaluation = async () => {
       if (!selectedAgent) return;
       setIsEvaluating(true);
@@ -220,6 +237,10 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
      );
   };
 
+    /**
+     * Renders the Read-Only Details Sidebar for a selected node.
+     * Shows configuration, assigned tools, and flow mode.
+     */
   const renderNodeDetails = () => {
     if (!selectedNode) return null;
     const isGroup = selectedNode.type === 'group';
@@ -310,6 +331,10 @@ export const AgentRegistry: React.FC<AgentRegistryProps> = ({ agents, onDeleteAg
     );
   };
 
+    /**
+     * Renders the full "LLM-as-a-Judge" Evaluation Report.
+     * Includes Scorecard, Scenario Breakdown, and Transcript logs.
+     */
   const renderEvaluationReport = () => {
       if (!selectedReport) return null;
 

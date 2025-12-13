@@ -19,6 +19,17 @@ const formatDate = (date: Date | string) => {
   return `${day}/${month}/${year}`;
 };
 
+/**
+ * @file src/components/Sidebar.tsx
+ * @description The Main Navigation Sidebar.
+ * 
+ * FEATURES:
+ * 1. **Navigation**: Switches between Overview, Watchtower, AOP, Registry, and Tools.
+ * 2. **Recent Agents**: Quick access list of recently modified agents.
+ * 3. **Draft Initiation**: "New Agent" button to reset state and start fresh.
+ * 4. **Responsive**: Off-canvas drawer on mobile, fixed sidebar on desktop.
+ */
+
 export const Sidebar: React.FC<SidebarProps & { isOpen: boolean; onClose: () => void }> = ({
   recentAgents,
   onNewAgent,

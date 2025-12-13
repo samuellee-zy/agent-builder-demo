@@ -1,3 +1,12 @@
+/**
+ * @file src/services/mockAgentService.ts
+ * @description The "AI Architect" Service.
+ * 
+ * This service powers the "Create with AI" chat interface.
+ * It uses a specialized Persona (The Architect) to interview the user
+ * and eventually generate a JSON specification for the new agent(s).
+ */
+
 import { Agent, ChatMessage } from '../types';
 import { AVAILABLE_TOOLS_LIST } from './tools';
 import { generateContent } from './api';
@@ -14,6 +23,7 @@ const cleanJson = (text: string): string => {
 };
 
 // Helper to hydrate JSON data into Agent objects
+// Assigns unique IDs and defaults if missing.
 const hydrate = (node: any): Agent => ({
   ...node,
   id: node.id === 'root' ? `root-${Date.now()}` : (node.id || Date.now().toString() + Math.random()),
@@ -23,7 +33,10 @@ const hydrate = (node: any): Agent => ({
   subAgents: node.subAgents ? node.subAgents.map(hydrate) : []
 });
 
-// Retry Wrapper for Generation with Smart Backoff
+/**
+ * Retry Wrapper specifically for Architect generation.
+ * The Architect can be heavy (Gemini 3 Pro), so it needs robust 429 handling.
+ */
 const retryOperation = async <T>(operation: () => Promise<T>, retries = 6, initialDelay = 2000): Promise<T> => {
     let delay = initialDelay;
     for (let i = 0; i < retries; i++) {
@@ -66,6 +79,10 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 6, initi
     throw new Error("Architect service failed after retries.");
 };
 
+/**
+ * Sends a message to the Architect persona.
+ * The Architect converses with the user to refine requirements.
+ */
 export const sendArchitectMessage = async (
   history: ChatMessage[], 
   newMessage: string,

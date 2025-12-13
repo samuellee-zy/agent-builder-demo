@@ -1,3 +1,12 @@
+/**
+ * @file scripts/test_transport.js
+ * @description Generic Verification script for Transport NSW GTFS Realtime feeds.
+ * 
+ * PURPOSE:
+ * - Runs tests against multiple datasets (e.g., `sydneytrains`, `metro`).
+ * - Validates Protobuf decoding for each feed type.
+ */
+
 import fetch from 'node-fetch';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import dotenv from 'dotenv';

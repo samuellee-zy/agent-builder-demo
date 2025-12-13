@@ -1,3 +1,13 @@
+/**
+ * @file src/services/watchtower.ts
+ * @description The "Watchtower" Observability Service.
+ * 
+ * Performs post-hoc analysis on agent session history to identify:
+ * 1. **Intent Clusters**: Broad categories of user queries.
+ * 2. **Sentiment Analysis**: User satisfaction scoring.
+ * 3. **Strategic Recommendations**: Suggestions for new tools or instruction tuning.
+ */
+
 import { generateContent } from './api';
 import { Agent, AgentSession, WatchtowerAnalysis } from "../types";
 
@@ -23,12 +33,12 @@ const compressTranscript = (messages: any[]): string => {
     }).join('\n');
 };
 
+/**
+ * Service to analyze historical sessions using Gemini 3 Pro.
+ */
 export class WatchtowerService {
-  // private ai: GoogleGenAI; // Removed as per instruction
+  constructor() { } // Static utility class pattern
 
-  constructor() {
-    // this.ai = new GoogleGenAI({ apiKey: getApiKey() }); // Removed as per instruction
-  }
 
   async runAnalysis(agent: Agent): Promise<WatchtowerAnalysis> {
     const sessions = agent.sessions || [];

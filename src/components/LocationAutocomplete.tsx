@@ -16,6 +16,16 @@ interface StopLocation {
   type?: string;
 }
 
+/**
+ * @file src/components/LocationAutocomplete.tsx
+ * @description Transport NSW Location Search Component.
+ * 
+ * FEATURES:
+ * 1. **Live Search**: Debounced API calls to Transport NSW Stop Finder.
+ * 2. **Portal Rendering**: Suggestions render in a Portal to avoid z-index/overflow clipping.
+ * 3. **Keyboard/Mouse**: Standard autocomplete interaction.
+ */
+
 export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({ value, onChange, placeholder, className }) => {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<StopLocation[]>([]);
