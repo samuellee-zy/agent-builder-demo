@@ -401,6 +401,13 @@ app.post('/api/generate', async (req, res) => {
       return res.json(result);
     }
 
+    if (model.startsWith('veo')) {
+      // Veo Video Generation
+      // Supports Text-to-Video and Image-to-Video
+      const result = await generateVideo(modelId, prompt, modelLocation, image);
+      return res.json(result);
+    }
+
     // For Gemini (Text/Multimodal)
     // Construct REST Payload (Snake Case)
     const payload = {
