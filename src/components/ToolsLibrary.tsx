@@ -385,7 +385,7 @@ export const ToolsLibrary: React.FC = () => {
                   <div>
                       <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Logic Source</h4>
                       <div className="relative group">
-                          <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 font-mono text-xs text-blue-300 whitespace-pre-wrap overflow-x-auto custom-scrollbar leading-relaxed">
+                              <pre className="bg-slate-900 border border-slate-800 rounded-lg p-4 font-mono text-xs text-blue-300 whitespace-pre-wrap overflow-x-auto custom-scrollbar leading-relaxed min-h-[200px]">
                               {selectedTool.executable.toString()}
                           </pre>
                           {isNative && (
