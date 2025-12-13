@@ -24,11 +24,17 @@ RUN npm run build
 # and handle API requests. It only includes production dependencies.
 # ==========================================
 FROM node:18-alpine
+WORKDIR /app
+
+# Copy dependency definitions
+COPY package*.json ./
+
+# Install production dependencies
 RUN npm ci --only=production
 
 # Copy server and built assets
 COPY server/ ./server/
-COPY --from=build /app/dist ./dist
+COPY --from=builder /app/dist ./dist
 
 # Expose port 8080
 EXPOSE 8080
