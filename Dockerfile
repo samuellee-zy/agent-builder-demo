@@ -34,6 +34,7 @@ RUN npm ci --only=production
 
 # Copy server and built assets
 COPY server/ ./server/
+COPY config/ ./config/
 COPY --from=builder /app/dist ./dist
 
 # Expose port 8080

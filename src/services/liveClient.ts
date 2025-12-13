@@ -46,8 +46,13 @@ export class LiveClient {
     // Output Queue
     private nextStartTime: number = 0;
 
-    constructor(private endpoint: string = 'ws://localhost:8080/api/live') {
-        console.log('[LiveClient] Initialized (Version: Handshake_Fix_V2)');
+    constructor(private endpoint?: string) {
+        if (!this.endpoint) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            this.endpoint = `${protocol}//${host}/api/live`;
+        }
+        console.log('[LiveClient] Initialized (Version: Handshake_Fix_V3)');
     }
 
     private videoInterval: any = null;

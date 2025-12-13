@@ -37,7 +37,14 @@ export function setupLiveServer(server) {
           const msg = JSON.parse(str);
 
           if (msg.type === 'config') {
-            // ...
+            console.log('[LiveServer] Received Config from Client');
+            if (accessToken) {
+              console.log('[LiveServer] Auth already ready. Connecting to Vertex...');
+              startVertexConnection(msg.config, accessToken, ws);
+            } else {
+              console.log('[LiveServer] Auth pending. Queuing Config...');
+              pendingConfig = msg.config;
+            }
           }
         } catch (e) {
           // Not JSON, likely Audio Buffer arrival before Setup Complete.
