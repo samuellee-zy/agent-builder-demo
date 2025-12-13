@@ -45,6 +45,9 @@ All notable changes to the Agent Builder project will be documented in this file
     - Resolved a syntax error that was preventing the deletion logic from executing.
   - **Tools Library CSS**: Fixed an overflow issue in the "Native Integration" code block.
   - **Visual Builder UI**: Fixed the "Deploy & Test System" button overlap on mobile devices by adjusting the controls container position.
+  - **Visual Improvements**:
+    - **Agent Diagram**: Added visible tool badges (icon + name) inside agent nodes to allow quick verification of assigned capabilities without opening the inspector.
+    - **Architect Chat**: Added a "Thinking..." indicator bubble that appears while the AI Architect is generating a response, providing immediate feedback to the user.
   - **Sidebar Navigation**: Fixed a bug where clicking a sidebar agent while in "Testing" mode would fail to switch views.
     - Adjusted `prevAgentIdRef` initialization to ensure state reset triggers correctly on component mount.
     - Implemented `builderResetKey` in `App.tsx` to force a view reset when re-selecting the *currently active* agent, allowing users to easily exit "Testing" mode.

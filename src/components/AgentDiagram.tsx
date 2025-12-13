@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Agent } from '../types';
-import { Plus, Bot, ArrowDownCircle, Layers, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Bot, ArrowDownCircle, Layers, Trash2, ChevronDown, Wrench } from 'lucide-react';
+import { AVAILABLE_TOOLS_LIST } from '../services/tools';
 
 interface AgentDiagramProps {
   agent: Agent;
@@ -214,6 +215,29 @@ export const AgentDiagram: React.FC<AgentDiagramProps> = ({
               <h4 className="text-xs font-bold text-slate-100 truncate w-full px-1">{agent.name}</h4>
               <p className="text-[10px] text-slate-400 truncate w-full px-1">{agent.model?.replace('gemini-', '').replace('-preview', '')}</p>
             </div>
+
+          {/* Tool Icons */}
+          {agent.tools && agent.tools.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-1 mt-1 px-1">
+              {agent.tools.map(toolId => {
+                // Import AVAILABLE_TOOLS_LIST if not available, simply using check for now or passing it as prop?
+                // Ideally AgentDiagram shouldn't depend on Services directly to remain pure UI?
+                // But for now direct import is practical.
+
+                // We need the tool name. 
+                // To avoid import cycles or props drilling, we can use a simple lookup if the list is imported.
+                // Let's assume we import AVAILABLE_TOOLS_LIST at top.
+
+                const tool = AVAILABLE_TOOLS_LIST.find(t => t.id === toolId);
+                return (
+                  <div key={toolId} className="flex items-center gap-0.5 bg-slate-700/50 border border-slate-600 px-1 py-0.5 rounded text-[9px] text-slate-300">
+                    <Wrench size={8} className="text-brand-400" />
+                    <span className="truncate max-w-[60px]">{tool?.name || toolId}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
             {!readOnly && depth > 0 && (
                 <button

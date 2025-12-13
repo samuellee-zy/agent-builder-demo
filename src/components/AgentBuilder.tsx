@@ -890,14 +890,15 @@ export const AgentBuilder: React.FC<AgentBuilderProps> = ({ onAgentCreated, init
               )}
 
               {/* Typing Indicator */}
-              {isTyping && !activeToolLog && (
+              {isArchitectTyping && (
                   <div className="flex justify-start animate-in fade-in">
-                      <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-md">
+                      <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-md flex items-center gap-3">
                           <div className="flex gap-1.5">
                               <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
                               <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
                               <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
                           </div>
+                          <span className="text-xs text-slate-400 font-medium">Thinking...</span>
                       </div>
                   </div>
               )}
