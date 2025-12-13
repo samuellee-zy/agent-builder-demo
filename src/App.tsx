@@ -23,7 +23,7 @@ import { saveAgentsToStorage, loadAgentsFromStorage } from './services/storage';
 import { LayoutDashboard } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // Default to overview
+  const [activeTab, setActiveTab] = useState('aop'); // Default to Architect (Agent Operating Procedure)
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

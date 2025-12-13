@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Agent, AgentSession, ChatMessage, EvaluationReport, EvaluationSession, AVAILABLE_MODELS } from '../types';
+import { Agent, AgentSession, ChatMessage, EvaluationReport, EvaluationSession } from '../types';
+import { AVAILABLE_MODELS } from '../config/models';
 import { AgentDiagram } from './AgentDiagram';
 import { AgentBuilder } from './AgentBuilder';
 import { AVAILABLE_TOOLS_REGISTRY } from '../services/tools';

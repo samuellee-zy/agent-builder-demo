@@ -15,7 +15,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { BuildStep, Agent, ChatMessage, AVAILABLE_MODELS, AgentSession } from '../types';
+import { BuildStep, Agent, ChatMessage, AgentSession } from '../types';
+import { AVAILABLE_MODELS } from '../config/models';
 import { AVAILABLE_TOOLS_LIST } from '../services/tools';
 import { sendArchitectMessage, generateArchitectureFromChat } from '../services/mockAgentService';
 import { AgentOrchestrator } from '../services/orchestrator';

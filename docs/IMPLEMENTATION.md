@@ -281,6 +281,11 @@ For a comprehensive list of all available tools, including their parameters and 
 
 ## 🤖 Supported Models Configuration
 
+**Configuration Source:**
+- **Shared Source of Truth**: [`config/models.json`](../config/models.json)
+- **Frontend Adapter**: [`src/config/models.ts`](../src/config/models.ts)
+- **Backend Adapter**: [`server/config/models.js`](../server/config/models.js)
+
 | Model ID | Type | Use Case |
 |----------|------|----------|
 | `gemini-2.5-flash` | Text | Coordinator, JSON Fallback, Fast Tasks |

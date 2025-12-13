@@ -74,24 +74,7 @@ function getVertexClient(location) {
  * Maps high-level Model IDs/Aliases to their specific Locations and Version IDs.
  * Use this to control which region handles a specific model request.
  */
-const MODEL_CONFIG = {
-  // Global Models (Gemini Text/Multimodal)
-  'gemini-1.5-flash-002': { location: 'global' },
-  'gemini-1.5-pro-002': { location: 'global' },
-
-  // Custom Aliases
-  'gemini-2.5-flash': { location: 'global', modelId: 'gemini-2.5-flash' },
-  'gemini-3-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' },
-  'gemini-3.0-pro-preview': { location: 'global', modelId: 'gemini-3-pro-preview' },
-  'gemini-3-pro': { location: 'global', modelId: 'gemini-3-pro-preview' }, 
-
-  // Regional Models (Media Generation requires specific regions like us-central1)
-  'imagen-3.0-generate-001': { location: 'us-central1' },
-  'imagen-4.0-fast-generate-001': { location: 'us-central1' }, 
-  'veo-2.0-generate-001': { location: 'us-central1' },
-  'veo-3.1-fast-generate-001': { location: 'us-central1' },
-  'imagegeneration@006': { location: 'us-central1' },
-};
+import MODEL_CONFIG from './config/models.js';
 
 /**
  * Resolves the correct Model ID and Location for a given alias.
@@ -431,9 +414,22 @@ app.post('/api/generate', async (req, res) => {
 
     // Map Tools (camelCase -> snake_case)
     if (tools && tools.length > 0) {
-      payload.tools = tools.map(tool => ({
-        function_declarations: tool.functionDeclarations || tool.function_declarations
-      }));
+      payload.tools = tools.map(tool => {
+        const mappedTool = {};
+
+        // Map Function Declarations
+        if (tool.functionDeclarations || tool.function_declarations) {
+          mappedTool.function_declarations = tool.functionDeclarations || tool.function_declarations;
+        }
+
+        // Map Google Search
+        // Vertex AI REST API expects: { "google_search": {} }
+        if (tool.googleSearch || tool.google_search) {
+          mappedTool.google_search = {};
+        }
+
+        return mappedTool;
+      });
     }
 
     // Map Generation Config (camelCase -> snake_case)
